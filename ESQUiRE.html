@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PICO Search Query Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pico-card {
+            transition: all 0.3s ease;
+        }
+        .pico-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .glow {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .term-badge {
+            transition: all 0.2s ease;
+        }
+        .term-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .term-input-container {
+            transition: all 0.3s ease;
+        }
+        .slide-down {
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .boolean-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            margin-bottom: 5px;
+            z-index: 10;
+            min-width: 120px;
+        }
+        .boolean-dropdown.show {
+            display: block;
+        }
+        .boolean-btn {
+            transition: all 0.2s ease;
+        }
+        .boolean-btn:hover {
+            transform: scale(1.05);
+        }
+        .boolean-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .pico-card {
+                min-height: 220px;
+            }
+            .term-input-container {
+                flex-wrap: wrap;
+            }
+            .term-input-container input {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            .term-input-container .button-group {
+                width: 100%;
+                display: flex;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-blue-600 mb-2">PICO Search Query Generator</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">Transform your clinical questions into effective search queries using the PICO framework</p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Advanced Search Toggle -->
+            <div class="flex justify-center mb-6">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-medium text-gray-700">Basic</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="advanced-toggle" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                    <span class="text-sm font-medium text-gray-700">Advanced</span>
+                </div>
+            </div>
+
+            <!-- PICO Input Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <!-- Patient/Problem Card -->
+                    <div class="pico-card bg-blue-50 rounded-lg p-5 border border-blue-100 flex flex-col">
+                        <div class="flex items-center mb-3">
+                            <div class="bg-blue-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-user-injured text-blue-600"></i>
+                            </div>
+                            <h3 class="font-semibold text-blue-800">Patient/Problem</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">Describe the patient population or problem</p>
+                        
+                        <div id="patient-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]">
+                            <!-- Terms will be added here -->
+                        </div>
+                        
+                        <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                            <input id="patient-input" type="text" class="flex-1 px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="e.g. elderly patients" onkeypress="handleKeyPress(event, 'patient')">
+                            <div class="button-group flex items-center gap-2">
+                                <div class="relative">
+                                    <button id="patient-boolean-btn" class="boolean-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-md hidden">
+                                        <span id="patient-boolean-text">AND</span>
+                                    </button>
+                                    <div id="patient-boolean-dropdown" class="boolean-dropdown bg-white shadow-md rounded-md p-1">
+                                        <button onclick="setBooleanOperator('patient', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">AND</button>
+                                        <button onclick="setBooleanOperator('patient', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">OR</button>
+                                        <button onclick="setBooleanOperator('patient', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">NOT</button>
+                                    </div>
+                                </div>
+                                <button onclick="addTerm('patient')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-all duration-200">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Intervention Card -->
+                    <div class="pico-card bg-green-50 rounded-lg p-5 border border-green-100 flex flex-col">
+                        <div class="flex items-center mb-3">
+                            <div class="bg-green-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-procedures text-green-600"></i>
+                            </div>
+                            <h3 class="font-semibold text-green-800">Intervention</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">Describe the treatment, test, or exposure</p>
+                        
+                        <div id="intervention-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]">
+                            <!-- Terms will be added here -->
+                        </div>
+                        
+                        <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                            <input id="intervention-input" type="text" class="flex-1 px-3 py-2 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-300" placeholder="e.g. regular exercise" onkeypress="handleKeyPress(event, 'intervention')">
+                            <div class="button-group flex items-center gap-2">
+                                <div class="relative">
+                                    <button id="intervention-boolean-btn" class="boolean-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-md hidden">
+                                        <span id="intervention-boolean-text">AND</span>
+                                    </button>
+                                    <div id="intervention-boolean-dropdown" class="boolean-dropdown bg-white shadow-md rounded-md p-1">
+                                        <button onclick="setBooleanOperator('intervention', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">AND</button>
+                                        <button onclick="setBooleanOperator('intervention', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">OR</button>
+                                        <button onclick="setBooleanOperator('intervention', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">NOT</button>
+                                    </div>
+                                </div>
+                                <button onclick="addTerm('intervention')" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full transition-all duration-200">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Card -->
+                    <div class="pico-card bg-purple-50 rounded-lg p-5 border border-purple-100 flex flex-col">
+                        <div class="flex items-center mb-3">
+                            <div class="bg-purple-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-balance-scale text-purple-600"></i>
+                            </div>
+                            <h3 class="font-semibold text-purple-800">Comparison</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">Describe the alternative (if any)</p>
+                        
+                        <div id="comparison-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]">
+                            <!-- Terms will be added here -->
+                        </div>
+                        
+                        <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                            <input id="comparison-input" type="text" class="flex-1 px-3 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-300" placeholder="e.g. no exercise" onkeypress="handleKeyPress(event, 'comparison')">
+                            <div class="button-group flex items-center gap-2">
+                                <div class="relative">
+                                    <button id="comparison-boolean-btn" class="boolean-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-md hidden">
+                                        <span id="comparison-boolean-text">AND</span>
+                                    </button>
+                                    <div id="comparison-boolean-dropdown" class="boolean-dropdown bg-white shadow-md rounded-md p-1">
+                                        <button onclick="setBooleanOperator('comparison', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">AND</button>
+                                        <button onclick="setBooleanOperator('comparison', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">OR</button>
+                                        <button onclick="setBooleanOperator('comparison', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">NOT</button>
+                                    </div>
+                                </div>
+                                <button onclick="addTerm('comparison')" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-full transition-all duration-200">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outcome Card -->
+                    <div class="pico-card bg-amber-50 rounded-lg p-5 border border-amber-100 flex flex-col">
+                        <div class="flex items-center mb-3">
+                            <div class="bg-amber-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-heartbeat text-amber-600"></i>
+                            </div>
+                            <h3 class="font-semibold text-amber-800">Outcome</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">Describe what you want to measure</p>
+                        
+                        <div id="outcome-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]">
+                            <!-- Terms will be added here -->
+                        </div>
+                        
+                        <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                            <input id="outcome-input" type="text" class="flex-1 px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-300" placeholder="e.g. blood sugar control" onkeypress="handleKeyPress(event, 'outcome')">
+                            <div class="button-group flex items-center gap-2">
+                                <div class="relative">
+                                    <button id="outcome-boolean-btn" class="boolean-btn bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1 rounded-md hidden">
+                                        <span id="outcome-boolean-text">AND</span>
+                                    </button>
+                                    <div id="outcome-boolean-dropdown" class="boolean-dropdown bg-white shadow-md rounded-md p-1">
+                                        <button onclick="setBooleanOperator('outcome', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">AND</button>
+                                        <button onclick="setBooleanOperator('outcome', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">OR</button>
+                                        <button onclick="setBooleanOperator('outcome', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">NOT</button>
+                                    </div>
+                                </div>
+                                <button onclick="addTerm('outcome')" class="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-full transition-all duration-200">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <button id="generate-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 flex items-center">
+                        <i class="fas fa-search mr-2"></i> Generate Search Query
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8 fade-in">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-file-alt text-blue-500 mr-2"></i> Generated Search Query
+                </h2>
+                
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                    <label class="text-sm font-medium text-gray-700">Search Strategy</label>
+                    <button id="copy-btn" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <i class="fas fa-copy mr-1"></i> Copy to Clipboard
+                    </button>
+                    </div>
+                    <div id="search-query" class="bg-gray-50 p-4 rounded-md border border-gray-200 font-mono text-gray-800 whitespace-pre-wrap"></div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-700 mb-3 flex items-center">
+                            <i class="fas fa-database text-green-500 mr-2"></i> PubMed Search
+                        </h3>
+                        <div class="bg-green-50 p-4 rounded-md border border-green-200">
+                            <p class="text-sm text-gray-600 mb-2">Use this query in PubMed:</p>
+                            <div id="pubmed-query" class="font-mono text-sm bg-white p-3 rounded border border-green-100 whitespace-pre-wrap"></div>
+                            <a id="pubmed-link" href="#" target="_blank" class="mt-3 inline-block bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-4 rounded flex items-center">
+                                <i class="fas fa-external-link-alt mr-2"></i> Search on PubMed
+                            </a>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-700 mb-3 flex items-center">
+                            <i class="fas fa-search text-purple-500 mr-2"></i> General Database Search
+                        </h3>
+                        <div class="bg-purple-50 p-4 rounded-md border border-purple-200">
+                            <p class="text-sm text-gray-600 mb-2">Use this query in other databases:</p>
+                            <div id="general-query" class="font-mono text-sm bg-white p-3 rounded border border-purple-100 whitespace-pre-wrap"></div>
+                            <div class="mt-3 flex space-x-2">
+                                <button id="google-scholar-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm py-2 px-4 rounded flex items-center">
+                                    <i class="fas fa-graduation-cap mr-2"></i> Google Scholar
+                                </button>
+                                <button id="cochrane-btn" class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm py-2 px-4 rounded flex items-center">
+                                    <i class="fas fa-book-medical mr-2"></i> Cochrane
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-lightbulb text-yellow-500 mr-2"></i> PICO Framework Tips
+                </h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-blue-50 p-5 rounded-lg">
+                        <h3 class="font-medium text-blue-800 mb-2 flex items-center">
+                            <i class="fas fa-info-circle text-blue-500 mr-2"></i> About PICO
+                        </h3>
+                        <p class="text-gray-700 text-sm">PICO is a framework used in evidence-based practice to formulate focused clinical questions. It helps structure your search to find the most relevant evidence.</p>
+                    </div>
+                    <div class="bg-green-50 p-5 rounded-lg">
+                        <h3 class="font-medium text-green-800 mb-2 flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i> Search Tips
+                        </h3>
+                        <ul class="text-gray-700 text-sm list-disc pl-5 space-y-1">
+                            <li>Use specific terms rather than broad concepts</li>
+                            <li>Include synonyms for your terms</li>
+                            <li>Consider abbreviations and acronyms</li>
+                            <li>Use quotation marks for exact phrases</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>PICO Search Query Generator - A tool for evidence-based practice</p>
+            <p class="mt-1">© 2023 Clinical Search Tools</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize term arrays for each PICO component
+        const picoTerms = {
+            patient: [],
+            intervention: [],
+            comparison: [],
+            outcome: []
+        };
+        
+        // Track the last boolean operator used for each component
+        const lastBooleanOperator = {
+            patient: 'AND',
+            intervention: 'AND',
+            comparison: 'AND',
+            outcome: 'AND'
+        };
+        
+        let advancedSearch = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle advanced search
+            document.getElementById('advanced-toggle').addEventListener('change', function() {
+                advancedSearch = this.checked;
+                
+                // Show/hide boolean buttons for all components
+                const booleanBtns = document.querySelectorAll('[id$="-boolean-btn"]');
+                booleanBtns.forEach(btn => {
+                    if (advancedSearch) {
+                        btn.classList.remove('hidden');
+                    } else {
+                        btn.classList.add('hidden');
+                        // Hide any open dropdowns
+                        const dropdownId = btn.id.replace('-btn', '-dropdown');
+                        document.getElementById(dropdownId).classList.remove('show');
+                    }
+                });
+            });
+                    
+            // Setup boolean dropdown toggles
+            ['patient', 'intervention', 'comparison', 'outcome'].forEach(component => {
+                const btn = document.getElementById(`${component}-boolean-btn`);
+                const dropdown = document.getElementById(`${component}-boolean-dropdown`);
+                
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('show');
+                });
+                
+                // Close dropdown when clicking elsewhere
+                document.addEventListener('click', function() {
+                    dropdown.classList.remove('show');
+                });
+                
+                // Update button text to show current operator
+                document.getElementById(`${component}-boolean-text`).textContent = lastBooleanOperator[component];
+            });
+                    
+            // Generate search query
+            document.getElementById('generate-btn').addEventListener('click', function() {
+                // Check if at least one term exists in any category
+                const hasTerms = Object.values(picoTerms).some(terms => terms.length > 0);
+                
+                if (!hasTerms) {
+                    alert('Please add at least one term to any PICO component');
+                    return;
+                }
+                
+                // Generate search queries
+                const searchQuery = generateSearchQuery();
+                const pubmedQuery = generatePubMedQuery();
+                const generalQuery = generateGeneralQuery();
+                
+                // Display results
+                document.getElementById('search-query').textContent = searchQuery;
+                document.getElementById('pubmed-query').textContent = pubmedQuery;
+                document.getElementById('general-query').textContent = generalQuery;
+                
+                // Create PubMed link
+                const pubmedLink = document.getElementById('pubmed-link');
+                pubmedLink.href = `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(pubmedQuery)}`;
+                
+                // Show results section
+                document.getElementById('results-section').classList.remove('hidden');
+                
+                // Scroll to results
+                document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+                
+                // Add glow effect to results section
+                document.getElementById('results-section').classList.add('glow');
+                setTimeout(() => {
+                    document.getElementById('results-section').classList.remove('glow');
+                }, 2000);
+            });
+                    
+            // Copy to clipboard
+            document.getElementById('copy-btn').addEventListener('click', function() {
+                const searchQuery = document.getElementById('search-query').textContent;
+                navigator.clipboard.writeText(searchQuery).then(() => {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+                    
+            // Google Scholar button
+            document.getElementById('google-scholar-btn').addEventListener('click', function() {
+                const generalQuery = document.getElementById('general-query').textContent;
+                window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(generalQuery)}`, '_blank');
+            });
+                    
+            // Cochrane button
+            document.getElementById('cochrane-btn').addEventListener('click', function() {
+                const generalQuery = document.getElementById('general-query').textContent;
+                window.open(`https://www.cochranelibrary.com/search?q=${encodeURIComponent(generalQuery)}`, '_blank');
+            });
+        });
+
+        // Set boolean operator for a component
+        function setBooleanOperator(component, operator) {
+            lastBooleanOperator[component] = operator;
+            document.getElementById(`${component}-boolean-text`).textContent = operator;
+            document.getElementById(`${component}-boolean-dropdown`).classList.remove('show');
+        }
+
+        // Handle Enter key press in input fields
+        function handleKeyPress(event, component) {
+            if (event.key === 'Enter') {
+                addTerm(component);
+            }
+        }
+
+        // Add term to the specified PICO component
+        function addTerm(component) {
+            const input = document.getElementById(`${component}-input`);
+            const term = input.value.trim();
+                    
+            if (!term) return;
+                    
+            // If there are existing terms, add the boolean operator first
+            if (picoTerms[component].length > 0 && advancedSearch) {
+                picoTerms[component].push(lastBooleanOperator[component]);
+            }
+                    
+            // Add the term
+            picoTerms[component].push(term);
+                    
+            // Clear input
+            input.value = '';
+            input.focus();
+                    
+            // Update UI
+            updateTermsDisplay(component);
+        }
+
+        // Remove term from the specified PICO component
+        function removeTerm(component, index) {
+            // If removing a boolean operator, also remove the one before it if it's a term
+            if (typeof picoTerms[component][index] === 'string' && 
+                ['AND', 'OR', 'NOT'].includes(picoTerms[component][index])) {
+                picoTerms[component].splice(index, 1);
+            } else {
+                picoTerms[component].splice(index, 1);
+            }
+                    
+            updateTermsDisplay(component);
+        }
+
+        // Update the display of terms for a PICO component
+        function updateTermsDisplay(component) {
+            const container = document.getElementById(`${component}-terms-container`);
+            container.innerHTML = '';
+                    
+            picoTerms[component].forEach((term, index) => {
+                const badge = document.createElement('div');
+                
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    // Boolean operator badge
+                    badge.className = `term-badge bg-gray-200 text-gray-800 font-bold text-xs px-2 py-1 rounded flex items-center slide-down`;
+                    badge.textContent = term;
+                } else {
+                    // Regular term badge
+                    badge.className = `term-badge bg-${getColorForComponent(component)}-100 text-${getColorForComponent(component)}-800 text-xs px-3 py-1 rounded-full flex items-center slide-down`;
+                    
+                    badge.innerHTML = `
+                        ${term}
+                        <button onclick="removeTerm('${component}', ${index})" class="ml-2 text-${getColorForComponent(component)}-600 hover:text-${getColorForComponent(component)}-800">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    `;
+                }
+                
+                container.appendChild(badge);
+            });
+        }
+
+        // Helper function to get color for component
+        function getColorForComponent(component) {
+            const colors = {
+                patient: 'blue',
+                intervention: 'green',
+                comparison: 'purple',
+                outcome: 'amber'
+            };
+            return colors[component];
+        }
+
+        // Helper functions to generate queries
+        function generateSearchQuery() {
+            let query = "PICO Search Strategy:\n\n";
+                    
+            if (picoTerms.patient.length > 0) {
+                query += `Patient/Problem: ${formatTermsForDisplay(picoTerms.patient)}\n`;
+            }
+            if (picoTerms.intervention.length > 0) {
+                query += `Intervention: ${formatTermsForDisplay(picoTerms.intervention)}\n`;
+            }
+            if (picoTerms.comparison.length > 0) {
+                query += `Comparison: ${formatTermsForDisplay(picoTerms.comparison)}\n`;
+            }
+            if (picoTerms.outcome.length > 0) {
+                query += `Outcome: ${formatTermsForDisplay(picoTerms.outcome)}\n`;
+            }
+                    
+            query += "\nSuggested search terms:\n";
+                    
+            // Process terms for each category
+            if (picoTerms.patient.length > 0) {
+                query += "- Patient/Problem terms:\n";
+                query += formatSearchTerms(picoTerms.patient);
+            }
+                    
+            if (picoTerms.intervention.length > 0) {
+                query += "- Intervention terms:\n";
+                query += formatSearchTerms(picoTerms.intervention);
+            }
+                    
+            if (picoTerms.comparison.length > 0) {
+                query += "- Comparison terms:\n";
+                query += formatSearchTerms(picoTerms.comparison);
+            }
+                    
+            if (picoTerms.outcome.length > 0) {
+                query += "- Outcome terms:\n";
+                query += formatSearchTerms(picoTerms.outcome);
+            }
+                    
+            return query;
+        }
+                
+        function formatTermsForDisplay(terms) {
+            return terms.map(term => {
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    return ` ${term} `;
+                }
+                return term;
+            }).join('').trim();
+        }
+                
+        function formatSearchTerms(terms) {
+            let result = '';
+            let currentGroup = [];
+                    
+            terms.forEach(term => {
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    if (currentGroup.length > 0) {
+                        result += `  • ${currentGroup.map(t => `"${t}"`).join(' OR ')}\n`;
+                        currentGroup = [];
+                    }
+                } else {
+                    currentGroup.push(term);
+                    if (term.includes(" ")) {
+                        currentGroup.push(term.split(" ")[0] + '*');
+                    }
+                }
+            });
+                    
+            if (currentGroup.length > 0) {
+                result += `  • ${currentGroup.map(t => `"${t}"`).join(' OR ')}\n`;
+            }
+                    
+            return result;
+        }
+                
+        function generatePubMedQuery() {
+            const parts = [];
+                    
+            if (picoTerms.patient.length > 0) {
+                parts.push(`(${formatPubMedTerms(picoTerms.patient)})`);
+            }
+            if (picoTerms.intervention.length > 0) {
+                parts.push(`(${formatPubMedTerms(picoTerms.intervention)})`);
+            }
+            if (picoTerms.comparison.length > 0) {
+                parts.push(`(${formatPubMedTerms(picoTerms.comparison)})`);
+            }
+            if (picoTerms.outcome.length > 0) {
+                parts.push(`(${formatPubMedTerms(picoTerms.outcome)})`);
+            }
+                    
+            return parts.join(' AND ');
+        }
+                
+        function generateGeneralQuery() {
+            const parts = [];
+                    
+            if (picoTerms.patient.length > 0) {
+                parts.push(`(${formatGeneralTerms(picoTerms.patient)})`);
+            }
+            if (picoTerms.intervention.length > 0) {
+                parts.push(`(${formatGeneralTerms(picoTerms.intervention)})`);
+            }
+            if (picoTerms.comparison.length > 0) {
+                parts.push(`(${formatGeneralTerms(picoTerms.comparison)})`);
+            }
+            if (picoTerms.outcome.length > 0) {
+                parts.push(`(${formatGeneralTerms(picoTerms.outcome)})`);
+            }
+                    
+            return parts.join(' AND ');
+        }
+                
+        function formatPubMedTerms(terms) {
+            let result = '';
+            let currentGroup = [];
+                    
+            terms.forEach(term => {
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    if (currentGroup.length > 0) {
+                        result += `${currentGroup.map(t => formatSinglePubMedTerm(t)).join(' OR ')} ${term} `;
+                        currentGroup = [];
+                    }
+                } else {
+                    currentGroup.push(term);
+                }
+            });
+                    
+            if (currentGroup.length > 0) {
+                result += currentGroup.map(t => formatSinglePubMedTerm(t)).join(' OR ');
+            }
+                    
+            return result.trim();
+        }
+                
+        function formatSinglePubMedTerm(term) {
+            let formattedTerm = `"${term}"`;
+            if (isMedicalTerm(term)) {
+                formattedTerm += ` OR ${term}[MeSH Terms]`;
+            }
+            return formattedTerm;
+        }
+                
+        function formatGeneralTerms(terms) {
+            let result = '';
+            let currentGroup = [];
+                    
+            terms.forEach(term => {
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    if (currentGroup.length > 0) {
+                        result += `${currentGroup.map(t => formatSingleGeneralTerm(t)).join(' OR ')} ${term} `;
+                        currentGroup = [];
+                    }
+                } else {
+                    currentGroup.push(term);
+                }
+            });
+                    
+            if (currentGroup.length > 0) {
+                result += currentGroup.map(t => formatSingleGeneralTerm(t)).join(' OR ');
+            }
+                    
+            return result.trim();
+        }
+                
+        function formatSingleGeneralTerm(term) {
+            let formattedTerm = `"${term}"`;
+            if (term.includes(" ")) {
+                formattedTerm += ` OR ${term.split(" ")[0]}*`;
+            }
+            return formattedTerm;
+        }
+                
+        function isMedicalTerm(text) {
+            // Very simple check - in a real app you'd have a better way to identify medical terms
+            const medicalIndicators = ['patient', 'disease', 'therapy', 'treatment', 'effect', 'outcome', 'clinical'];
+            return medicalIndicators.some(indicator => 
+                text.toLowerCase().includes(indicator)
+            );
+        }
+    </script>
+</body>
+</html>
