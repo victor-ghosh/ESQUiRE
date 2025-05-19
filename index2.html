@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PICO Search Query Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f9fafb; /* Tailwind's gray-50 */
+            font-family: 'Inter', sans-serif; 
+        }
+        .main-container {
+            flex-grow: 1;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pico-card { transition: all 0.3s ease; }
+        .pico-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .term-badge { transition: all 0.2s ease; }
+        .term-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .term-input-container { transition: all 0.3s ease; }
+        .slide-down { animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .boolean-dropdown, .export-dropdown, .hamburger-dropdown {
+            display: none;
+            position: absolute;
+            z-index: 50; 
+            min-width: 160px; 
+            background-color: white;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+            border-radius: 0.375rem; 
+            padding: 0.25rem; 
+        }
+        .boolean-dropdown.show, .export-dropdown.show, .hamburger-dropdown.show { display: block; }
+        .boolean-btn, .export-option-btn, .hamburger-item-link { transition: all 0.2s ease; }
+        .boolean-btn:hover, .export-option-btn:hover, .hamburger-item-link:hover {
+            transform: scale(1.02); 
+            background-color: #f3f4f6; 
+        }
+        .boolean-btn.active {
+            background-color: #3b82f6; 
+            color: white;
+        }
+        .filter-btn { transition: all 0.2s ease; }
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .filter-btn.active {
+            background-color: #2563eb; 
+            color: white;
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.3);
+        }
+        .app-header {
+            background-color: #1f2937; 
+            color: white;
+            padding: 0.75rem 1rem; 
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .app-footer {
+            background-color: #1f2937; 
+            color: #9ca3af; 
+            padding: 1.5rem 1rem; 
+            text-align: center;
+            font-size: 0.875rem; 
+        }
+        .app-title-header {
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            margin-left: 0.75rem; 
+        }
+        .hamburger-dropdown {
+            left: 0; 
+            top: 100%; 
+            margin-top: 0.5rem; 
+            width: 280px; 
+        }
+        .hamburger-group-title {
+            padding: 0.5rem 0.75rem;
+            font-weight: 600; 
+            font-size: 0.75rem; 
+            color: #4b5563; 
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .hamburger-item-link {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 0.75rem; 
+            font-size: 0.875rem; 
+            color: #374151; 
+            border-radius: 0.25rem; 
+        }
+        .hamburger-item-link i {
+            margin-right: 0.75rem; 
+            width: 16px; 
+            text-align: center;
+        }
+        .export-dropdown {
+            right: 0;
+            bottom: calc(100% + 0.25rem); 
+        }
+        .content-section, .dummy-page { /* Common class for main content sections and dummy pages */
+            display: none; 
+            padding: 1rem; /* Reduced padding for content sections */
+            background-color: white;
+            border-radius: 0.75rem; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); 
+            margin-top: 1rem; /* Reduced margin */
+        }
+        .dummy-page { /* Specific styles for dummy pages if needed, otherwise they use .content-section */
+             padding: 2rem; /* Keep original padding for dummy pages */
+             margin-top: 2rem;
+        }
+        .content-section h2, .dummy-page h2 {
+            font-size: 1.875rem; 
+            font-weight: 700; 
+            color: #1f2937; 
+            margin-bottom: 1rem;
+        }
+        .content-section p, .dummy-page p {
+            font-size: 1rem; 
+            color: #4b5563; 
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        #download-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #10b981; 
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, bottom 0.3s ease-in-out;
+            font-size: 0.875rem;
+        }
+        #download-notification.show {
+            opacity: 1;
+            bottom: 30px;
+        }
+        /* Styling for the PICO Strategy Display */
+        #pico-strategy-display-area {
+            background-color: #f9fafb; /* gray-50 */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 1.5rem; /* p-6 */
+            margin-top: 1.5rem; /* mt-6 */
+        }
+        #pico-strategy-display-area h3 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* semibold */
+            color: #1f2937; /* gray-800 */
+            margin-bottom: 0.75rem; /* mb-3 */
+        }
+        #pico-strategy-display-area ul {
+            list-style-type: disc;
+            padding-left: 1.25rem; /* pl-5 */
+            margin-bottom: 1rem; /* mb-4 */
+            color: #374151; /* gray-700 */
+        }
+        #pico-strategy-display-area ul li {
+            margin-bottom: 0.25rem; /* mb-1 */
+        }
+        #pico-strategy-display-area code {
+            background-color: #e5e7eb; /* gray-200 */
+            padding: 0.125rem 0.375rem; /* px-1.5 py-0.5 */
+            border-radius: 0.25rem; /* rounded */
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .pico-card { min-height: 220px; }
+            .term-input-container { flex-wrap: wrap; }
+            .term-input-container input { width: 100%; margin-bottom: 8px; }
+            .term-input-container .button-group { width: 100%; display: flex; justify-content: flex-end; }
+            .filter-group { margin-bottom: 1rem; }
+            .filter-group h4 { text-align: center; }
+            .filter-buttons { justify-content: center; }
+            .app-header { flex-direction: row; justify-content: space-between; }
+            .app-title-header { margin-left: 0; } 
+            .hamburger-dropdown { width: calc(100vw - 2rem); max-width: 300px; }
+            .app-header .relative { 
+                order: -1; 
+                margin-right: 1rem; 
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="relative"> 
+            <button id="hamburger-btn" class="p-2 text-white hover:bg-gray-700 rounded-md focus:outline-none">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <div id="hamburger-dropdown" class="hamburger-dropdown">
+                <div class="hamburger-group-title">Core Tools</div>
+                <a href="#" class="hamburger-item-link" data-page="pico-generator-content-area"><i class="fas fa-tasks"></i>PICO Search Query Generator</a>
+                <a href="#" class="hamburger-item-link" data-page="query-converter-content-area"><i class="fas fa-exchange-alt"></i>Search Query Converter</a>
+                <a href="#" class="hamburger-item-link" data-page="results-deduplicator-content-area"><i class="fas fa-filter"></i>Results Deduplicator</a>
+
+                <div class="hamburger-group-title">Discovery & Formulation</div>
+                <a href="#" class="hamburger-item-link" data-page="gap-finder-page"><i class="fas fa-lightbulb"></i>Research Gap Finder</a>
+                <a href="#" class="hamburger-item-link" data-page="topic-generator-page"><i class="fas fa-microscope"></i>Novel Topic Generator</a>
+                
+                <div class="hamburger-group-title">Screening & Selection</div>
+                <a href="#" class="hamburger-item-link" data-page="tiab-screener-page"><i class="fas fa-binoculars"></i>Ti/Ab Screener</a>
+                <a href="#" class="hamburger-item-link" data-page="fulltext-screener-page"><i class="fas fa-file-alt"></i>Full Text Screener</a>
+                
+                <div class="hamburger-group-title">Data Management & Analysis</div>
+                <a href="#" class="hamburger-item-link" data-page="extraction-assist-page"><i class="fas fa-database"></i>Data Extraction Assist</a>
+                <a href="#" class="hamburger-item-link" data-page="validation-assist-page"><i class="fas fa-check-double"></i>Data Validation Assist</a>
+                <a href="#" class="hamburger-item-link" data-page="analysis-assist-page"><i class="fas fa-calculator"></i>Automated Data Analysis</a>
+                <a href="#" class="hamburger-item-link" data-page="plot-generator-page"><i class="fas fa-chart-bar"></i>Plot Generator</a>
+                
+                <div class="hamburger-group-title">Reporting & Synthesis</div>
+                <a href="#" class="hamburger-item-link" data-page="prisma-generator-page"><i class="fas fa-sitemap"></i>PRISMA Generator</a>
+                <a href="#" class="hamburger-item-link" data-page="bias-assessment-page"><i class="fas fa-shield-alt"></i>Automated Risk of Bias</a>
+                <a href="#" class="hamburger-item-link" data-page="traffic-plot-page"><i class="fas fa-traffic-light"></i>Traffic Plot Generator</a>
+                <a href="#" class="hamburger-item-link" data-page="methodology-assist-page"><i class="fas fa-pen-alt"></i>Methodology Writing Assist</a>
+            </div>
+        </div>
+        <div class="app-title-header">Clinical Search Tools</div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8 main-container">
+        <div id="pico-generator-content-area" class="content-section" style="display: block;">
+            <header class="text-center mb-10">
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 mb-2">PICO Search Query Generator</h1>
+                <p class="text-gray-600 max-w-2xl mx-auto">Transform your clinical questions into effective search queries using the PICO framework.</p>
+            </header>
+            <main>
+                <div class="flex justify-center mb-6">
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm font-medium text-gray-700">Basic</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="advanced-toggle" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                        <span class="text-sm font-medium text-gray-700">Advanced</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 mb-8"> {/* Removed outer shadow-lg as .content-section has it */}
+                    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="pico-card bg-blue-50 rounded-lg p-5 border border-blue-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 p-2 rounded-full mr-3"><i class="fas fa-user-injured text-blue-600"></i></div>
+                                <h3 class="font-semibold text-blue-800">Patient/Problem</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the patient population or problem</p>
+                            <div id="patient-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="patient-input" type="text" class="flex-1 px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="e.g. elderly patients" onkeypress="handleKeyPress(event, 'patient')">
+                                <div class="button-group flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="patient-boolean-btn" class="boolean-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-md hidden">
+                                            <span id="patient-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="patient-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('patient', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('patient', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('patient', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('patient')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-green-50 rounded-lg p-5 border border-green-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-green-100 p-2 rounded-full mr-3"><i class="fas fa-procedures text-green-600"></i></div>
+                                <h3 class="font-semibold text-green-800">Intervention</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the treatment, test, or exposure</p>
+                            <div id="intervention-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="intervention-input" type="text" class="flex-1 px-3 py-2 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-300" placeholder="e.g. regular exercise" onkeypress="handleKeyPress(event, 'intervention')">
+                                <div class="button-group flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="intervention-boolean-btn" class="boolean-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-md hidden">
+                                            <span id="intervention-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="intervention-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('intervention', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('intervention', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('intervention', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('intervention')" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-purple-50 rounded-lg p-5 border border-purple-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-purple-100 p-2 rounded-full mr-3"><i class="fas fa-balance-scale text-purple-600"></i></div>
+                                <h3 class="font-semibold text-purple-800">Comparison</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the alternative (if any)</p>
+                            <div id="comparison-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="comparison-input" type="text" class="flex-1 px-3 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-300" placeholder="e.g. no exercise" onkeypress="handleKeyPress(event, 'comparison')">
+                                <div class="button-group flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="comparison-boolean-btn" class="boolean-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-md hidden">
+                                            <span id="comparison-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="comparison-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('comparison', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('comparison', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('comparison', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('comparison')" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-amber-50 rounded-lg p-5 border border-amber-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-amber-100 p-2 rounded-full mr-3"><i class="fas fa-heartbeat text-amber-600"></i></div>
+                                <h3 class="font-semibold text-amber-800">Outcome</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe what you want to measure</p>
+                            <div id="outcome-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="outcome-input" type="text" class="flex-1 px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-300" placeholder="e.g. blood sugar control" onkeypress="handleKeyPress(event, 'outcome')">
+                                <div class="button-group flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="outcome-boolean-btn" class="boolean-btn bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1 rounded-md hidden">
+                                            <span id="outcome-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="outcome-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('outcome', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('outcome', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('outcome', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('outcome')" class="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 mb-6 border-t pt-6">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Study Type Filters</h3>
+                        <div class="grid md:grid-cols-3 gap-x-8 gap-y-6">
+                            <div class="filter-group">
+                                <h4 class="font-medium text-blue-700 mb-2 text-center md:text-left">Trials</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm py-2 px-4 rounded-md">RCT</button>
+                                    <button class="filter-btn bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm py-2 px-4 rounded-md">Non Randomized Trials</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <h4 class="font-medium text-green-700 mb-2 text-center md:text-left">Observational Studies</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Cross-sectional</button>
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Case-Control</button>
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Cohort</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <h4 class="font-medium text-purple-700 mb-2 text-center md:text-left">Review</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Network-Meta-Analysis</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Meta-Analysis</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Systematic Review</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Narrative Review</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center mt-8">
+                        <button id="generate-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-full flex items-center">
+                            <i class="fas fa-search mr-2"></i> Generate Search Query
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pico-strategy-display-area" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">PICO Search Strategy:</h2>
+                    <div>
+                        <strong>Patient/Problem:</strong> <span id="strategy-patient">N/A</span>
+                    </div>
+                    <div>
+                        <strong>Intervention:</strong> <span id="strategy-intervention">N/A</span>
+                    </div>
+                    <div>
+                        <strong>Comparison:</strong> <span id="strategy-comparison">N/A</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Outcome:</strong> <span id="strategy-outcome">N/A</span>
+                    </div>
+                    
+                    <h3 class="mt-4">Suggested search terms:</h3>
+                    <div id="suggested-terms-patient-problem">
+                        <strong>- Patient/Problem terms:</strong>
+                        <ul id="suggested-patient-list"></ul>
+                    </div>
+                    <div id="suggested-terms-intervention">
+                        <strong>- Intervention terms:</strong>
+                        <ul id="suggested-intervention-list"></ul>
+                    </div>
+                    <div id="suggested-terms-comparison">
+                        <strong>- Comparison terms:</strong>
+                        <ul id="suggested-comparison-list"></ul>
+                    </div>
+                    <div id="suggested-terms-outcome">
+                        <strong>- Outcome terms:</strong>
+                        <ul id="suggested-outcome-list"></ul>
+                    </div>
+                     <div class="mt-4">
+                        <strong>Overall Search String (Syntax for general purpose):</strong>
+                        <div id="overall-search-string-display" class="bg-gray-100 p-3 rounded-md border border-gray-300 font-mono text-sm text-gray-800 whitespace-pre-wrap min-h-[60px] mt-2">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 mt-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i> PICO Framework Tips
+                    </h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-blue-50 p-5 rounded-lg">
+                            <h3 class="font-medium text-blue-800 mb-2 flex items-center"><i class="fas fa-info-circle text-blue-500 mr-2"></i> About PICO</h3>
+                            <p class="text-gray-700 text-sm">PICO is a framework used in evidence-based practice to formulate focused clinical questions...</p>
+                        </div>
+                        <div class="bg-green-50 p-5 rounded-lg">
+                            <h3 class="font-medium text-green-800 mb-2 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Search Tips</h3>
+                            <ul class="text-gray-700 text-sm list-disc pl-5 space-y-1">
+                                <li>Use specific terms rather than broad concepts</li>
+                                <li>Include synonyms for your terms</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <div id="query-converter-content-area" class="content-section">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-exchange-alt text-blue-500 mr-3"></i> Database Specific Search Queries
+            </h2>
+            <p class="text-gray-600 mb-6">Below are the generated search queries tailored for different databases. Click the 'Search' link to execute the query directly on the respective database's website. Note: Actual results will vary based on database content and indexing.</p>
+            
+            <div id="db-specific-queries-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 class="text-md font-semibold text-blue-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> PubMed</h3>
+                    <div id="pubmed-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-blue-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="pubmed-results-count" class="font-semibold text-blue-700">N/A</span></span>
+                        <a id="pubmed-link-placeholder" href="#" target="_blank" class="text-blue-600 hover:text-blue-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <h3 class="text-md font-semibold text-orange-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Embase</h3>
+                    <div id="embase-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-orange-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="embase-results-count" class="font-semibold text-orange-700">N/A</span></span>
+                         <a id="embase-link-placeholder" href="#" target="_blank" class="text-orange-600 hover:text-orange-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 class="text-md font-semibold text-red-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Scopus</h3>
+                    <div id="scopus-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-red-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="scopus-results-count" class="font-semibold text-red-700">N/A</span></span>
+                        <a id="scopus-link-placeholder" href="#" target="_blank" class="text-red-600 hover:text-red-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                    <h3 class="text-md font-semibold text-indigo-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Web of Science</h3>
+                    <div id="wos-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-indigo-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="wos-results-count" class="font-semibold text-indigo-700">N/A</span></span>
+                        <a id="wos-link-placeholder" href="#" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-teal-50 p-4 rounded-lg border border-teal-200">
+                    <h3 class="text-md font-semibold text-teal-700 mb-2 flex items-center"><i class="fas fa-book-medical mr-2"></i> Cochrane Library</h3>
+                    <div id="cochrane-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-teal-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="cochrane-results-count" class="font-semibold text-teal-700">N/A</span></span>
+                        <a id="cochrane-link-placeholder" href="#" target="_blank" class="text-teal-600 hover:text-teal-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h3 class="text-md font-semibold text-yellow-700 mb-2 flex items-center"><i class="fas fa-flask mr-2"></i> ClinicalTrials.gov</h3>
+                    <div id="clinicaltrials-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-yellow-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="clinicaltrials-results-count" class="font-semibold text-yellow-700">N/A</span></span>
+                        <a id="clinicaltrials-link-placeholder" href="#" target="_blank" class="text-yellow-600 hover:text-yellow-800 font-medium pointer-events-none opacity-50">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-deduplicator-content-area" class="content-section">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-filter text-blue-500 mr-3"></i> Results Summary & Deduplication
+            </h2>
+            <p class="text-gray-600 mb-6">This section summarizes the (simulated) results from all databases and provides an estimated deduplicated count. You can then export these conceptual deduplicated results.</p>
+            <div class="border-t pt-6">
+                <div class="grid md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-gray-100 p-4 rounded-lg text-center">
+                        <h4 class="text-sm font-medium text-gray-600 mb-1">Cumulative Results</h4>
+                        <p id="cumulative-results-count" class="text-2xl font-bold text-gray-800">N/A</p>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg text-center">
+                        <h4 class="text-sm font-medium text-gray-600 mb-1">Deduplicated Results</h4>
+                        <p id="deduplicated-results-count" class="text-2xl font-bold text-green-600">N/A</p>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg flex flex-col justify-center items-center relative">
+                         <h4 class="text-sm font-medium text-gray-600 mb-2">Export Deduplicated</h4>
+                        <button id="export-results-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md flex items-center w-full justify-center">
+                            <i class="fas fa-download mr-2"></i> Export Results <i class="fas fa-chevron-down text-xs ml-2"></i>
+                        </button>
+                        <div id="export-dropdown" class="export-dropdown w-full">
+                            <button class="export-option-btn w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm text-gray-700" data-format="ris"><i class="fas fa-file-alt mr-2"></i>Export as .RIS</button>
+                            <button class="export-option-btn w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm text-gray-700" data-format="csv"><i class="fas fa-file-csv mr-2"></i>Export as .CSV</button>
+                            <button class="export-option-btn w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm text-gray-700" data-format="xlsx"><i class="fas fa-file-excel mr-2"></i>Export as .XLSX</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gap-finder-page" class="dummy-page">
+            <h2><i class="fas fa-lightbulb text-blue-500 mr-2"></i> Research Gap Finder</h2>
+            <p>This tool will help you identify gaps in existing research... </p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="topic-generator-page" class="dummy-page">
+            <h2><i class="fas fa-microscope text-green-500 mr-2"></i> Novel Topic Generator</h2>
+            <p>Generate novel research topics...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="tiab-screener-page" class="dummy-page">
+            <h2><i class="fas fa-binoculars text-yellow-500 mr-2"></i> Ti/Ab Screener</h2>
+            <p>Assists in screening titles and abstracts...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="fulltext-screener-page" class="dummy-page">
+            <h2><i class="fas fa-file-alt text-pink-500 mr-2"></i> Full Text Screener</h2>
+            <p>Helps in the process of screening full-text articles...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="extraction-assist-page" class="dummy-page">
+            <h2><i class="fas fa-database text-cyan-500 mr-2"></i> Data Extraction Assist</h2>
+            <p>A tool to facilitate the extraction of data...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="validation-assist-page" class="dummy-page">
+            <h2><i class="fas fa-check-double text-lime-500 mr-2"></i> Data Validation Assist</h2>
+            <p>Assists in validating the accuracy and consistency...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="analysis-assist-page" class="dummy-page">
+            <h2><i class="fas fa-calculator text-orange-500 mr-2"></i> Automated Data Analysis</h2>
+            <p>Provides tools for performing automated statistical analysis...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="plot-generator-page" class="dummy-page">
+            <h2><i class="fas fa-chart-bar text-fuchsia-500 mr-2"></i> Plot Generator</h2>
+            <p>Generates various types of plots and charts...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="prisma-generator-page" class="dummy-page">
+            <h2><i class="fas fa-sitemap text-sky-500 mr-2"></i> PRISMA Generator</h2>
+            <p>Helps in creating PRISMA flow diagrams...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="bias-assessment-page" class="dummy-page">
+            <h2><i class="fas fa-shield-alt text-rose-500 mr-2"></i> Automated Risk of Bias</h2>
+            <p>Assists in conducting risk of bias assessments...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="traffic-plot-page" class="dummy-page">
+            <h2><i class="fas fa-traffic-light text-amber-500 mr-2"></i> Traffic Plot Generator</h2>
+            <p>Generates "traffic light" plots...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+        <div id="methodology-assist-page" class="dummy-page">
+            <h2><i class="fas fa-pen-alt text-violet-500 mr-2"></i> Methodology Writing Assist</h2>
+            <p>Provides templates and guidance for writing...</p>
+            <button class="back-to-pico-btn bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Back to PICO Tools</button>
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        <p>PICO Search Query Generator - A tool for evidence-based practice</p>
+        <p class="mt-1">© <span id="current-year-footer">2023</span> Clinical Search Tools. All rights reserved.</p>
+    </footer>
+    <div id="download-notification">Download started...</div>
+
+    <script>
+        const picoTerms = { patient: [], intervention: [], comparison: [], outcome: [] };
+        const lastBooleanOperator = { patient: 'AND', intervention: 'AND', comparison: 'AND', outcome: 'AND' };
+        let advancedSearch = false;
+
+        // Store generated data globally to be accessible by different "pages"
+        let generatedData = {
+            baseQuery: "",
+            specificQueries: {},
+            counts: {},
+            totalResults: 0,
+            deduplicatedResults: 0,
+            picoElementsForDisplay: { patient: "", intervention: "", comparison: "", outcome: "" },
+            suggestedTerms: { patient: [], intervention: [], comparison: [], outcome: [] }
+        };
+
+        const mainContentAreas = [
+            'pico-generator-content-area', 
+            'query-converter-content-area', 
+            'results-deduplicator-content-area'
+        ];
+        const allDummyPageIds = Array.from(document.querySelectorAll('.dummy-page')).map(el => el.id);
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('current-year-footer').textContent = new Date().getFullYear();
+            const advancedToggle = document.getElementById('advanced-toggle');
+            if (advancedToggle) {
+                advancedToggle.addEventListener('change', function() {
+                    advancedSearch = this.checked;
+                    document.querySelectorAll('[id$="-boolean-btn"]').forEach(btn => {
+                        const picoComponent = btn.id.split('-')[0];
+                        if (advancedSearch && picoTerms[picoComponent].length > 0) {
+                            btn.classList.remove('hidden');
+                        } else {
+                            btn.classList.add('hidden');
+                            document.getElementById(btn.id.replace('-btn', '-dropdown')).classList.remove('show');
+                        }
+                    });
+                });
+            }
+            
+            ['patient', 'intervention', 'comparison', 'outcome'].forEach(component => {
+                const btn = document.getElementById(`${component}-boolean-btn`);
+                const dropdown = document.getElementById(`${component}-boolean-dropdown`);
+                if (btn && dropdown) {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        closeAllDropdowns(dropdown.id);
+                        dropdown.classList.toggle('show');
+                    });
+                    document.getElementById(`${component}-boolean-text`).textContent = lastBooleanOperator[component];
+                }
+            });
+            
+            const generateBtn = document.getElementById('generate-btn');
+            if (generateBtn) {
+                generateBtn.addEventListener('click', function() {
+                    const hasTerms = Object.values(picoTerms).some(terms => terms.length > 0);
+                    if (!hasTerms) {
+                        showNotification('Please add at least one PICO term.', 'error');
+                        return;
+                    }
+                    
+                    // Generate and store all data
+                    generatedData.baseQuery = generateSearchQuery();
+                    generatedData.picoElementsForDisplay = {
+                        patient: picoTerms.patient.join(' ') || "N/A",
+                        intervention: picoTerms.intervention.join(' ') || "N/A",
+                        comparison: picoTerms.comparison.join(' ') || "N/A",
+                        outcome: picoTerms.outcome.join(' ') || "N/A"
+                    };
+                    generatedData.suggestedTerms = {
+                        patient: picoTerms.patient.filter(t => !['AND', 'OR', 'NOT'].includes(t)),
+                        intervention: picoTerms.intervention.filter(t => !['AND', 'OR', 'NOT'].includes(t)),
+                        comparison: picoTerms.comparison.filter(t => !['AND', 'OR', 'NOT'].includes(t)),
+                        outcome: picoTerms.outcome.filter(t => !['AND', 'OR', 'NOT'].includes(t))
+                    };
+
+                    ['pubmed', 'embase', 'scopus', 'wos', 'cochrane', 'clinicaltrials'].forEach(db => {
+                        generatedData.specificQueries[db] = generateSpecificQuery(generatedData.baseQuery, db);
+                        generatedData.counts[db] = Math.floor(Math.random() * (generatedData.baseQuery.length > 5 ? 150 : 10));
+                    });
+
+                    generatedData.totalResults = Object.values(generatedData.counts).reduce((sum, count) => sum + count, 0);
+                    generatedData.deduplicatedResults = Math.floor(generatedData.totalResults * (Math.random() * 0.3 + 0.5));
+
+                    // Display PICO Strategy on the current page
+                    displayPicoStrategy();
+                    document.getElementById('pico-strategy-display-area').classList.remove('hidden');
+                    document.getElementById('pico-strategy-display-area').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+
+                    // Data is now generated and stored. Other pages will pick it up when navigated to.
+                    showNotification('Search strategy and queries generated!', 'success');
+                });
+            }
+            
+            const copyBtn = document.getElementById('copy-btn');
+            if (copyBtn) { /* This button is not in the new structure for PICO page, but kept for safety if it's re-added */
+                copyBtn.addEventListener('click', function() {
+                    const searchQueryText = document.getElementById('overall-search-string-display').textContent; // Use the new display
+                    navigator.clipboard.writeText(searchQueryText).then(() => {
+                        showNotification('Overall search string copied!', 'success');
+                    });
+                });
+            }
+            
+            const hamburgerBtn = document.getElementById('hamburger-btn');
+            const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+            if (hamburgerBtn && hamburgerDropdown) {
+                hamburgerBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    closeAllDropdowns(hamburgerDropdown.id);
+                    hamburgerDropdown.classList.toggle('show');
+                });
+            }
+
+            document.querySelectorAll('.hamburger-item-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const pageId = this.dataset.page;
+                    navigateToPage(pageId);
+                    hamburgerDropdown.classList.remove('show');
+                });
+            });
+
+            document.querySelectorAll('.back-to-pico-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    navigateToPage('pico-generator-content-area'); // Go back to the main PICO tool
+                });
+            });
+            
+            const exportBtn = document.getElementById('export-results-btn');
+            const exportDropdown = document.getElementById('export-dropdown');
+            if (exportBtn && exportDropdown) {
+                exportBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    closeAllDropdowns(exportDropdown.id);
+                    const rect = exportBtn.getBoundingClientRect();
+                    exportDropdown.style.left = `${rect.left + window.scrollX}px`;
+                    exportDropdown.style.width = `${rect.width}px`;
+                    exportDropdown.classList.toggle('show');
+                });
+            }
+            document.querySelectorAll('.export-option-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const format = this.dataset.format;
+                    showNotification(`Download started for .${format} file.`, 'success');
+                    exportDropdown.classList.remove('show');
+                });
+            });
+            
+            document.addEventListener('click', function() { closeAllDropdowns(); });
+            document.querySelectorAll('.filter-btn').forEach(button => {
+                button.addEventListener('click', function() { this.classList.toggle('active'); });
+            });
+        });
+
+        function displayPicoStrategy() {
+            document.getElementById('strategy-patient').textContent = generatedData.picoElementsForDisplay.patient;
+            document.getElementById('strategy-intervention').textContent = generatedData.picoElementsForDisplay.intervention;
+            document.getElementById('strategy-comparison').textContent = generatedData.picoElementsForDisplay.comparison;
+            document.getElementById('strategy-outcome').textContent = generatedData.picoElementsForDisplay.outcome;
+
+            const termToListItems = (terms) => terms.length > 0 ? terms.map(term => `<li><code>${term}</code></li>`).join('') : '<li>N/A</li>';
+
+            document.getElementById('suggested-patient-list').innerHTML = termToListItems(generatedData.suggestedTerms.patient);
+            document.getElementById('suggested-intervention-list').innerHTML = termToListItems(generatedData.suggestedTerms.intervention);
+            document.getElementById('suggested-comparison-list').innerHTML = termToListItems(generatedData.suggestedTerms.comparison);
+            document.getElementById('suggested-outcome-list').innerHTML = termToListItems(generatedData.suggestedTerms.outcome);
+            
+            document.getElementById('overall-search-string-display').textContent = generatedData.baseQuery || "Please add PICO terms and click 'Generate Search Query'.";
+        }
+
+        function populateQueryConverterPage() {
+            ['pubmed', 'embase', 'scopus', 'wos', 'cochrane', 'clinicaltrials'].forEach(db => {
+                updateQueryPlaceholder(db, generatedData.specificQueries[db] || "Generate PICO strategy first.", 
+                    generatedData.specificQueries[db] ? getDbSearchUrl(db, generatedData.specificQueries[db]) : "#"
+                );
+                document.getElementById(`${db}-results-count`).textContent = generatedData.counts[db] !== undefined ? generatedData.counts[db] : "N/A";
+            });
+        }
+        
+        function getDbSearchUrl(dbType, query) {
+            const encodedQuery = encodeURIComponent(query);
+            switch(dbType) {
+                case 'pubmed': return `https://pubmed.ncbi.nlm.nih.gov/?term=${encodedQuery}`;
+                case 'embase': return `https://www.embase.com/search/results?q=${encodedQuery}`;
+                case 'scopus': return `https://www.scopus.com/results/results.uri?sort=plf-f&src=s&st1=${encodedQuery}`;
+                case 'wos': return `https://www.webofscience.com/wos/woscc/basic-search`; // User pastes query
+                case 'cochrane': return `https://www.cochranelibrary.com/search?q=${encodedQuery}`;
+                case 'clinicaltrials': return `https://clinicaltrials.gov/ct2/results?cond=&term=${encodedQuery}`;
+                default: return "#";
+            }
+        }
+
+
+        function populateResultsDeduplicatorPage() {
+            document.getElementById('cumulative-results-count').textContent = generatedData.totalResults;
+            document.getElementById('deduplicated-results-count').textContent = generatedData.deduplicatedResults;
+        }
+
+
+        function navigateToPage(pageId) {
+            // Hide all main content areas and dummy pages first
+            mainContentAreas.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            allDummyPageIds.forEach(id => {
+                 const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            // Show the selected page
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.style.display = 'block';
+                targetPage.classList.add('fade-in'); // Add fade-in effect
+                setTimeout(() => targetPage.classList.remove('fade-in'), 500); // Remove after animation
+
+                // Populate content if it's one of the main tool pages
+                if (pageId === 'query-converter-content-area') {
+                    populateQueryConverterPage();
+                } else if (pageId === 'results-deduplicator-content-area') {
+                    populateResultsDeduplicatorPage();
+                } else if (pageId === 'pico-generator-content-area') {
+                    // If navigating back to PICO, ensure strategy display is visible if data exists
+                    if (generatedData.baseQuery) {
+                         displayPicoStrategy(); // Re-display if already generated
+                         document.getElementById('pico-strategy-display-area').classList.remove('hidden');
+                    } else {
+                         document.getElementById('pico-strategy-display-area').classList.add('hidden');
+                    }
+                }
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function closeAllDropdowns(excludeId = null) {
+            document.querySelectorAll('.boolean-dropdown, .export-dropdown, .hamburger-dropdown').forEach(dropdown => {
+                if (dropdown.id !== excludeId) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+
+        function setBooleanOperator(component, operator) {
+            lastBooleanOperator[component] = operator;
+            document.getElementById(`${component}-boolean-text`).textContent = operator;
+            document.getElementById(`${component}-boolean-dropdown`).classList.remove('show');
+        }
+
+        function handleKeyPress(event, component) {
+            if (event.key === 'Enter') addTerm(component);
+        }
+
+        function addTerm(component) {
+            const input = document.getElementById(`${component}-input`);
+            let term = input.value.trim();
+            if (!term) return;
+            // if (term.includes(" ")) term = `"${term}"`; // Auto-quote phrases - might be too aggressive, user can do it.
+
+            if (picoTerms[component].length > 0 && advancedSearch && !['AND', 'OR', 'NOT'].includes(picoTerms[component][picoTerms[component].length -1])) {
+                picoTerms[component].push(lastBooleanOperator[component]);
+            }
+            picoTerms[component].push(term);
+            input.value = '';
+            input.focus();
+            updateTermsDisplay(component);
+
+            const booleanBtn = document.getElementById(`${component}-boolean-btn`);
+            if (advancedSearch && picoTerms[component].filter(t => !['AND', 'OR', 'NOT'].includes(t)).length > 0) {
+                booleanBtn.classList.remove('hidden');
+            }
+        }
+
+        function removeTerm(component, index) {
+            picoTerms[component].splice(index, 1);
+            // Clean up potential leading/trailing/double operators after removal
+            if (picoTerms[component].length > 0 && ['AND', 'OR', 'NOT'].includes(picoTerms[component][0])) {
+                picoTerms[component].shift();
+            }
+            if (picoTerms[component].length > 0 && ['AND', 'OR', 'NOT'].includes(picoTerms[component][picoTerms[component].length - 1])) {
+                picoTerms[component].pop();
+            }
+            for (let i = picoTerms[component].length - 1; i > 0; i--) {
+                if (['AND', 'OR', 'NOT'].includes(picoTerms[component][i]) && ['AND', 'OR', 'NOT'].includes(picoTerms[component][i-1])) {
+                    picoTerms[component].splice(i, 1); // Remove duplicate operator
+                }
+            }
+            updateTermsDisplay(component);
+            const booleanBtn = document.getElementById(`${component}-boolean-btn`);
+            if (!advancedSearch || picoTerms[component].filter(t => !['AND', 'OR', 'NOT'].includes(t)).length === 0) {
+                booleanBtn.classList.add('hidden');
+                document.getElementById(`${component}-boolean-dropdown`).classList.remove('show');
+            }
+        }
+
+        function updateTermsDisplay(component) {
+            const container = document.getElementById(`${component}-terms-container`);
+            container.innerHTML = '';
+            picoTerms[component].forEach((term, index) => {
+                const badge = document.createElement('div');
+                if (['AND', 'OR', 'NOT'].includes(term)) {
+                    badge.className = `term-badge bg-gray-200 text-gray-700 font-semibold text-xs px-2.5 py-1 rounded-md flex items-center slide-down`;
+                    badge.textContent = term;
+                } else {
+                    badge.className = `term-badge bg-${getColorForComponent(component)}-100 text-${getColorForComponent(component)}-800 text-sm px-3 py-1.5 rounded-full flex items-center slide-down`;
+                    badge.innerHTML = `${term} <button onclick="removeTerm('${component}', ${index})" class="ml-2 text-${getColorForComponent(component)}-600 hover:text-${getColorForComponent(component)}-900"><i class="fas fa-times text-xs"></i></button>`;
+                }
+                container.appendChild(badge);
+            });
+        }
+
+        function getColorForComponent(component) {
+            const colors = { patient: 'blue', intervention: 'green', comparison: 'purple', outcome: 'amber' };
+            return colors[component] || 'gray';
+        }
+
+        function generateSearchQuery() {
+            let queryParts = [];
+            ['patient', 'intervention', 'comparison', 'outcome'].forEach(component => {
+                if (picoTerms[component].length > 0) {
+                    // Filter out any boolean operators if not in advanced search or if they are at the start/end of a component group
+                    let termsToJoin = picoTerms[component];
+                    if (!advancedSearch || !termsToJoin.some(t => ['AND', 'OR', 'NOT'].includes(t))) {
+                        termsToJoin = termsToJoin.filter(t => !['AND', 'OR', 'NOT'].includes(t));
+                    }
+                    
+                    let componentQuery;
+                    if (advancedSearch && termsToJoin.some(t => ['AND', 'OR', 'NOT'].includes(t))) {
+                        componentQuery = termsToJoin.map(term => term.includes(" ") && !['AND','OR','NOT'].includes(term) ? `"${term}"` : term).join(' ');
+                    } else { 
+                        componentQuery = termsToJoin.map(term => term.includes(" ") ? `"${term}"` : term).join(' OR ');
+                    }
+                    if (componentQuery) queryParts.push(`(${componentQuery})`);
+                }
+            });
+            return queryParts.join(' AND ');
+        }
+        
+        function generateSpecificQuery(baseQuery, dbType) {
+            if (!baseQuery && Object.values(picoTerms).every(arr => arr.length === 0)) return `Please add PICO terms and generate the main strategy first.`;
+            if (!baseQuery) baseQuery = generateSearchQuery(); // Ensure baseQuery is generated if somehow missed
+            if (!baseQuery) return `Query could not be generated for ${dbType}.`;
+
+
+            let specificQuery = baseQuery;
+            const activeFilters = [];
+            document.querySelectorAll('.filter-btn.active').forEach(btn => {
+                let filterText = btn.textContent.trim();
+                if (dbType === 'pubmed') {
+                    if (filterText === "RCT") activeFilters.push("Randomized Controlled Trial[ptyp]");
+                    else if (filterText === "Non Randomized Trials") activeFilters.push("(Clinical Trial[ptyp] NOT Randomized Controlled Trial[ptyp])"); 
+                    else if (filterText === "Systematic Review") activeFilters.push("Systematic Review[ptyp]");
+                    else if (filterText === "Meta-Analysis") activeFilters.push("Meta-Analysis[ptyp]");
+                    else if (filterText === "Cross-sectional") activeFilters.push("Cross-Sectional Studies[Mesh]");
+                    else if (filterText === "Case-Control") activeFilters.push("Case-Control Studies[Mesh]");
+                    else if (filterText === "Cohort") activeFilters.push("Cohort Studies[Mesh]");
+                } else if (dbType === 'embase') {
+                    if (filterText === "RCT") activeFilters.push("'randomized controlled trial'/exp");
+                    else if (filterText === "Systematic Review") activeFilters.push("'systematic review'/exp");
+                    else if (filterText === "Meta-Analysis") activeFilters.push("'meta analysis'/exp");
+                }
+            });
+
+            if (activeFilters.length > 0) {
+                specificQuery = `(${specificQuery}) AND (${activeFilters.join(' OR ')})`; 
+            }
+            
+            if (dbType === 'pubmed') {
+                // More careful replacement to avoid messing with [ptyp] or [Mesh]
+                specificQuery = specificQuery.replace(/(?<!\[(?:MeSH|ptyp|Title\/Abstract)\s?)(?:\b([a-zA-Z0-9\s]+[a-zA-Z0-9])\b|\"([^\"]+)\")(?![\w\s]*\])/g, (match, p1, p2) => {
+                    const term = p1 || p2;
+                    if (term.toUpperCase() === 'AND' || term.toUpperCase() === 'OR' || term.toUpperCase() === 'NOT') return term;
+                    return term.includes(" ") ? `"${term}"[Title/Abstract]` : `${term}[Title/Abstract]`;
+                });
+                 specificQuery = specificQuery.replace(/\[Title\/Abstract\]\[Title\/Abstract\]/gi, '[Title/Abstract]'); // Clean up double tags
+            } else if (dbType === 'scopus') {
+                specificQuery = `TITLE-ABS-KEY(${specificQuery})`;
+            } else if (dbType === 'wos') {
+                specificQuery = `TS=(${specificQuery})`;
+            }
+            return specificQuery;
+        }
+
+        function updateQueryPlaceholder(dbType, query, linkUrl = null) {
+            const queryEl = document.getElementById(`${dbType}-query-placeholder`);
+            const linkEl = document.getElementById(`${dbType}-link-placeholder`);
+            if(queryEl) queryEl.textContent = query || "N/A";
+            if (linkEl) {
+                if (linkUrl && query && !query.startsWith("Please add PICO terms") && !query.startsWith("Query could not be generated")) {
+                    linkEl.href = linkUrl;
+                    linkEl.classList.remove('pointer-events-none', 'opacity-50');
+                } else {
+                    linkEl.href = "#";
+                    linkEl.classList.add('pointer-events-none', 'opacity-50');
+                }
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('download-notification');
+            notification.textContent = message;
+            notification.className = ''; 
+            notification.classList.add('show');
+            notification.style.backgroundColor = type === 'error' ? '#ef4444' : '#10b981';
+            setTimeout(() => { notification.classList.remove('show'); }, 3000);
+        }
+    </script>
+</body>
+</html>
