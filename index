@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PICO Search Query Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f0f4f8; /* Lighter overall background */
+            font-family: 'Inter', sans-serif;
+        }
+        .main-container {
+            flex-grow: 1;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pico-card { transition: all 0.3s ease; }
+        .pico-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .term-badge { transition: all 0.2s ease; }
+        .term-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .term-input-container { transition: all 0.3s ease; }
+        
+        .boolean-dropdown {
+            display: none;
+            position: absolute;
+            z-index: 50;
+            min-width: 120px; 
+            background-color: white;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+            border-radius: 0.375rem;
+            padding: 0.25rem;
+            right: 0; 
+            top: calc(100% + 0.25rem); 
+        }
+        .boolean-dropdown.show { display: block; }
+
+        .boolean-btn, .export-option-btn, .hamburger-item-link { transition: all 0.2s ease; }
+        .boolean-btn:hover, .export-option-btn:hover {
+            transform: scale(1.02);
+            background-color: #f3f4f6;
+        }
+        .hamburger-item-link:hover {
+            background-color: #e0f2fe; 
+            color: #0369a1; 
+        }
+        .hamburger-item-link.active {
+            background-color: #bae6fd; 
+            color: #0c4a6e; 
+            font-weight: 600;
+        }
+
+        .boolean-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .filter-btn { transition: all 0.2s ease; }
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .filter-btn.active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.3);
+        }
+        .app-header {
+            background-color: #e2e8f0; 
+            color: #1e293b; 
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        }
+        .app-footer {
+            background-color: #e2e8f0; 
+            color: #475569; 
+            padding: 1.5rem 1rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+        .app-title-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-left: 0.75rem;
+        }
+        .hamburger-dropdown {
+            display: none;
+            position: absolute;
+            z-index: 50;
+            background-color: white;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.1); 
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            left: 0;
+            top: calc(100% + 0.5rem); 
+            margin-top: 0rem; 
+            width: 280px;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        .hamburger-dropdown.show {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .hamburger-group-title {
+            padding: 0.75rem 0.75rem; /* Increased padding for better click area */
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer; /* Indicate it's clickable */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb; /* Separator */
+        }
+        .hamburger-group-title:last-of-type {
+            border-bottom: none;
+        }
+        .hamburger-group-title .group-arrow {
+            transition: transform 0.3s ease;
+        }
+        .hamburger-group-title.open .group-arrow {
+            transform: rotate(90deg);
+        }
+        .hamburger-group-content {
+            display: none; /* Collapsed by default */
+            padding-left: 0.75rem; /* Indent content */
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .hamburger-group-content.open {
+            display: block;
+            max-height: 500px; /* Adjust as needed for content height */
+        }
+
+        .hamburger-item-link {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: #374151;
+            border-radius: 0.25rem;
+        }
+        .hamburger-item-link i {
+            margin-right: 0.75rem;
+            width: 16px;
+            text-align: center;
+        }
+
+        .content-section, .dummy-page {
+            display: none;
+            padding: 1.5rem; 
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -2px rgba(0,0,0,0.04); 
+            margin-top: 1.5rem; 
+        }
+        .dummy-page {
+             padding: 2rem;
+             margin-top: 2rem;
+        }
+        .content-section h2, .dummy-page h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1.5rem; 
+        }
+        .content-section p, .dummy-page p {
+            font-size: 1rem;
+            color: #4b5563;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        #download-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, bottom 0.3s ease-in-out;
+            font-size: 0.875rem;
+        }
+        #download-notification.show {
+            opacity: 1;
+            bottom: 30px;
+        }
+        #pico-strategy-display-area {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        #pico-strategy-display-area h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+        }
+        #pico-strategy-display-area ul {
+            list-style-type: disc;
+            padding-left: 1.25rem;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+        #pico-strategy-display-area ul li {
+            margin-bottom: 0.25rem;
+        }
+        #pico-strategy-display-area code {
+            background-color: #e5e7eb;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+        .navigation-buttons-container {
+            margin-top: 2rem; 
+            padding-top: 1.5rem; 
+            border-top: 1px solid #e5e7eb; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .pico-card { min-height: auto; }
+            .term-input-container { flex-wrap: wrap; }
+            .term-input-container input { width: 100%; margin-bottom: 8px; }
+            .term-input-container .button-group { width: 100%; display: flex; justify-content: flex-end; }
+            .filter-group { margin-bottom: 1rem; }
+            .filter-group h4 { text-align: center; }
+            .filter-buttons { justify-content: center; }
+            .app-header { flex-direction: row; justify-content: space-between; }
+            .app-title-header { margin-left: 0; }
+            .hamburger-dropdown { width: calc(100vw - 2rem); max-width: 300px; }
+            .app-header .relative {
+                order: -1;
+                margin-right: 1rem;
+            }
+            .navigation-buttons-container {
+                flex-direction: column;
+                gap: 0.75rem; 
+            }
+            .navigation-buttons-container button {
+                width: 100%;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <div class="relative">
+            <button id="hamburger-btn" class="p-2 text-slate-700 hover:bg-slate-300 rounded-md focus:outline-none">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <div id="hamburger-dropdown" class="hamburger-dropdown">
+                <div>
+                    <div class="hamburger-group-title">
+                        <span>Discovery & Formulation</span>
+                        <i class="fas fa-chevron-right group-arrow"></i>
+                    </div>
+                    <div class="hamburger-group-content">
+                        <a href="#" class="hamburger-item-link" data-page="gap-finder-page"><i class="fas fa-lightbulb"></i>Research Gap Finder</a>
+                        <a href="#" class="hamburger-item-link" data-page="topic-generator-page"><i class="fas fa-microscope"></i>Novel Topic Generator</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="hamburger-group-title">
+                        <span>Core Tools</span>
+                        <i class="fas fa-chevron-right group-arrow"></i>
+                    </div>
+                    <div class="hamburger-group-content">
+                        <a href="#" class="hamburger-item-link" data-page="pico-generator-content-area"><i class="fas fa-tasks"></i>PICO Search Query Generator</a>
+                        <a href="#" class="hamburger-item-link" data-page="query-converter-content-area"><i class="fas fa-exchange-alt"></i>Search Query Converter</a>
+                        <a href="#" class="hamburger-item-link" data-page="results-deduplicator-content-area"><i class="fas fa-filter"></i>Results Deduplicator</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="hamburger-group-title">
+                        <span>Screening & Selection</span>
+                        <i class="fas fa-chevron-right group-arrow"></i>
+                    </div>
+                    <div class="hamburger-group-content">
+                        <a href="#" class="hamburger-item-link" data-page="tiab-screener-page"><i class="fas fa-binoculars"></i>Ti/Ab Screener</a>
+                        <a href="#" class="hamburger-item-link" data-page="fulltext-screener-page"><i class="fas fa-file-alt"></i>Full Text Screener</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="hamburger-group-title">
+                        <span>Data Management & Analysis</span>
+                        <i class="fas fa-chevron-right group-arrow"></i>
+                    </div>
+                    <div class="hamburger-group-content">
+                        <a href="#" class="hamburger-item-link" data-page="extraction-assist-page"><i class="fas fa-database"></i>Data Extraction Assist</a>
+                        <a href="#" class="hamburger-item-link" data-page="validation-assist-page"><i class="fas fa-check-double"></i>Data Validation Assist</a>
+                        <a href="#" class="hamburger-item-link" data-page="analysis-assist-page"><i class="fas fa-calculator"></i>Automated Data Analysis</a>
+                        <a href="#" class="hamburger-item-link" data-page="plot-generator-page"><i class="fas fa-chart-bar"></i>Plot Generator</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="hamburger-group-title">
+                        <span>Reporting & Synthesis</span>
+                        <i class="fas fa-chevron-right group-arrow"></i>
+                    </div>
+                    <div class="hamburger-group-content">
+                        <a href="#" class="hamburger-item-link" data-page="prisma-generator-page"><i class="fas fa-sitemap"></i>PRISMA Generator</a>
+                        <a href="#" class="hamburger-item-link" data-page="bias-assessment-page"><i class="fas fa-shield-alt"></i>Automated Risk of Bias</a>
+                        <a href="#" class="hamburger-item-link" data-page="traffic-plot-page"><i class="fas fa-traffic-light"></i>Traffic Plot Generator</a>
+                        <a href="#" class="hamburger-item-link" data-page="methodology-assist-page"><i class="fas fa-pen-alt"></i>Methodology Writing Assist</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="app-title-header">Clinical Search Tools</div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8 main-container">
+        <div id="pico-generator-content-area" class="content-section" style="display: block;">
+            <header class="text-center mb-10">
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 mb-2">PICO Search Query Generator</h1>
+                <p class="text-gray-600 max-w-2xl mx-auto">Transform your clinical questions into effective search queries using the PICO framework.</p>
+            </header>
+            <main>
+                <div class="flex justify-center mb-6">
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm font-medium text-gray-700">Basic</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="advanced-toggle" class="sr-only peer">
+                            <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                        <span class="text-sm font-medium text-gray-700">Advanced</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="pico-card bg-blue-50 rounded-lg p-5 border border-blue-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 p-2 rounded-full mr-3"><i class="fas fa-user-injured text-blue-600"></i></div>
+                                <h3 class="font-semibold text-blue-800">Patient/Problem</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the patient population or problem</p>
+                            <div id="patient-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="patient-input" type="text" class="flex-1 min-w-0 px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="e.g. elderly patients" onkeypress="handleKeyPress(event, 'patient')">
+                                <div class="button-group flex-shrink-0 flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="patient-boolean-btn" class="boolean-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-md hidden">
+                                            <span id="patient-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="patient-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('patient', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('patient', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('patient', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-blue-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('patient')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-green-50 rounded-lg p-5 border border-green-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-green-100 p-2 rounded-full mr-3"><i class="fas fa-procedures text-green-600"></i></div>
+                                <h3 class="font-semibold text-green-800">Intervention</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the treatment, test, or exposure</p>
+                            <div id="intervention-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="intervention-input" type="text" class="flex-1 min-w-0 px-3 py-2 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-300" placeholder="e.g. regular exercise" onkeypress="handleKeyPress(event, 'intervention')">
+                                <div class="button-group flex-shrink-0 flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="intervention-boolean-btn" class="boolean-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-md hidden">
+                                            <span id="intervention-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="intervention-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('intervention', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('intervention', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('intervention', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-green-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('intervention')" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-purple-50 rounded-lg p-5 border border-purple-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-purple-100 p-2 rounded-full mr-3"><i class="fas fa-balance-scale text-purple-600"></i></div>
+                                <h3 class="font-semibold text-purple-800">Comparison</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe the alternative (if any)</p>
+                            <div id="comparison-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="comparison-input" type="text" class="flex-1 min-w-0 px-3 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-300" placeholder="e.g. no exercise" onkeypress="handleKeyPress(event, 'comparison')">
+                                <div class="button-group flex-shrink-0 flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="comparison-boolean-btn" class="boolean-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-md hidden">
+                                            <span id="comparison-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="comparison-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('comparison', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('comparison', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('comparison', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-purple-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('comparison')" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pico-card bg-amber-50 rounded-lg p-5 border border-amber-100 flex flex-col">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-amber-100 p-2 rounded-full mr-3"><i class="fas fa-heartbeat text-amber-600"></i></div>
+                                <h3 class="font-semibold text-amber-800">Outcome</h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Describe what you want to measure</p>
+                            <div id="outcome-terms-container" class="mb-3 flex flex-wrap gap-2 min-h-[40px]"></div>
+                            <div class="term-input-container flex items-center gap-2 mt-auto relative">
+                                <input id="outcome-input" type="text" class="flex-1 min-w-0 px-3 py-2 border border-amber-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-300" placeholder="e.g. blood sugar control" onkeypress="handleKeyPress(event, 'outcome')">
+                                <div class="button-group flex-shrink-0 flex items-center gap-2">
+                                    <div class="relative">
+                                        <button id="outcome-boolean-btn" class="boolean-btn bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1 rounded-md hidden">
+                                            <span id="outcome-boolean-text">AND</span> <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                        </button>
+                                        <div id="outcome-boolean-dropdown" class="boolean-dropdown">
+                                            <button onclick="setBooleanOperator('outcome', 'AND')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">AND</button>
+                                            <button onclick="setBooleanOperator('outcome', 'OR')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">OR</button>
+                                            <button onclick="setBooleanOperator('outcome', 'NOT')" class="boolean-btn w-full text-left px-3 py-1 hover:bg-amber-50 rounded text-sm">NOT</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="addTerm('outcome')" class="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-full"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 mb-6 border-t pt-6">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Study Type Filters</h3>
+                        <div class="grid md:grid-cols-3 gap-x-8 gap-y-6">
+                            <div class="filter-group">
+                                <h4 class="font-medium text-blue-700 mb-2 text-center md:text-left">Trials</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm py-2 px-4 rounded-md">RCT</button>
+                                    <button class="filter-btn bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm py-2 px-4 rounded-md">Non Randomized Trials</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <h4 class="font-medium text-green-700 mb-2 text-center md:text-left">Observational Studies</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Cross-sectional</button>
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Case-Control</button>
+                                    <button class="filter-btn bg-green-100 hover:bg-green-200 text-green-700 text-sm py-2 px-4 rounded-md">Cohort</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <h4 class="font-medium text-purple-700 mb-2 text-center md:text-left">Review</h4>
+                                <div class="filter-buttons flex flex-col space-y-2">
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Network-Meta-Analysis</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Meta-Analysis</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Systematic Review</button>
+                                    <button class="filter-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm py-2 px-4 rounded-md">Narrative Review</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center mt-8">
+                        <button id="generate-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-full flex items-center">
+                            <i class="fas fa-search mr-2"></i> Generate Search Query
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pico-strategy-display-area" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">PICO Search Strategy:</h2>
+                    <div><strong>Patient/Problem:</strong> <span id="strategy-patient">N/A</span></div>
+                    <div><strong>Intervention:</strong> <span id="strategy-intervention">N/A</span></div>
+                    <div><strong>Comparison:</strong> <span id="strategy-comparison">N/A</span></div>
+                    <div class="mb-3"><strong>Outcome:</strong> <span id="strategy-outcome">N/A</span></div>
+                    
+                    <h3 class="mt-4">Suggested search terms:</h3>
+                    <div id="suggested-terms-patient-problem" class="mb-2"><strong>- Patient/Problem terms:</strong><ul id="suggested-patient-list" class="list-disc pl-5"></ul></div>
+                    <div id="suggested-terms-intervention" class="mb-2"><strong>- Intervention terms:</strong><ul id="suggested-intervention-list" class="list-disc pl-5"></ul></div>
+                    <div id="suggested-terms-comparison" class="mb-2"><strong>- Comparison terms:</strong><ul id="suggested-comparison-list" class="list-disc pl-5"></ul></div>
+                    <div id="suggested-terms-outcome" class="mb-2"><strong>- Outcome terms:</strong><ul id="suggested-outcome-list" class="list-disc pl-5"></ul></div>
+                    
+                    <div class="mt-4">
+                        <strong>Overall Search String (Syntax for general purpose):</strong>
+                        <div id="overall-search-string-display" class="bg-gray-100 p-3 rounded-md border border-gray-300 font-mono text-sm text-gray-800 whitespace-pre-wrap min-h-[60px] mt-2"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 mt-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i> PICO Framework Tips
+                    </h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-blue-50 p-5 rounded-lg">
+                            <h3 class="font-medium text-blue-800 mb-2 flex items-center"><i class="fas fa-info-circle text-blue-500 mr-2"></i> About PICO</h3>
+                            <p class="text-gray-700 text-sm">PICO is a framework used in evidence-based practice to formulate focused clinical questions and facilitate literature searching. It stands for Patient/Problem, Intervention, Comparison, and Outcome.</p>
+                        </div>
+                        <div class="bg-green-50 p-5 rounded-lg">
+                            <h3 class="font-medium text-green-800 mb-2 flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> Search Tips</h3>
+                            <ul class="text-gray-700 text-sm list-disc pl-5 space-y-1">
+                                <li>Use specific terms rather than broad concepts.</li>
+                                <li>Include synonyms and related terms for comprehensive searching.</li>
+                                <li>Utilize Boolean operators (AND, OR, NOT) effectively.</li>
+                                <li>Consider MeSH terms or subject headings for database-specific searches.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <div id="query-converter-content-area" class="content-section">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-exchange-alt text-blue-500 mr-3"></i> Database Specific Search Queries
+            </h2>
+            <p class="text-gray-600 mb-6">Below are the generated search queries tailored for different databases. Click the 'Search' link to execute the query directly on the respective database's website. Note: Actual results will vary based on database content and indexing.</p>
+            
+            <div id="db-specific-queries-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 class="text-md font-semibold text-blue-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> PubMed</h3>
+                    <div id="pubmed-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-blue-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="pubmed-results-count" data-count="234" class="font-semibold text-blue-700">e.g., 234</span></span>
+                        <a id="pubmed-link-placeholder" href="#" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 class="text-md font-semibold text-red-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Embase</h3>
+                    <div id="embase-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-red-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="embase-results-count" data-count="312" class="font-semibold text-red-700">e.g., 312</span></span>
+                        <a id="embase-link-placeholder" href="#" target="_blank" class="text-red-600 hover:text-red-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h3 class="text-md font-semibold text-green-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Cochrane Library</h3>
+                    <div id="cochrane-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-green-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="cochrane-results-count" data-count="98" class="font-semibold text-green-700">e.g., 98</span></span>
+                        <a id="cochrane-link-placeholder" href="#" target="_blank" class="text-green-600 hover:text-green-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                 <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h3 class="text-md font-semibold text-yellow-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Scopus</h3>
+                    <div id="scopus-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-yellow-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="scopus-results-count" data-count="450" class="font-semibold text-yellow-700">e.g., 450</span></span>
+                        <a id="scopus-link-placeholder" href="#" target="_blank" class="text-yellow-600 hover:text-yellow-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                    <h3 class="text-md font-semibold text-indigo-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> Web of Science</h3>
+                    <div id="wos-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-indigo-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="wos-results-count" data-count="380" class="font-semibold text-indigo-700">e.g., 380</span></span>
+                        <a id="wos-link-placeholder" href="#" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                    <h3 class="text-md font-semibold text-pink-700 mb-2 flex items-center"><i class="fas fa-database mr-2"></i> CINAHL</h3>
+                    <div id="cinahl-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-pink-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="cinahl-results-count" data-count="175" class="font-semibold text-pink-700">e.g., 175</span></span>
+                        <a id="cinahl-link-placeholder" href="#" target="_blank" class="text-pink-600 hover:text-pink-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+                <div class="bg-teal-50 p-4 rounded-lg border border-teal-200">
+                    <h3 class="text-md font-semibold text-teal-700 mb-2 flex items-center"><i class="fas fa-flask mr-2"></i> ClinicalTrials.gov</h3>
+                    <div id="ctg-query-placeholder" class="font-mono text-xs bg-white p-3 rounded border border-teal-100 whitespace-pre-wrap min-h-[50px] mb-2">N/A</div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Results: <span id="ctg-results-count" data-count="150" class="font-semibold text-teal-700">e.g., 150</span></span>
+                        <a id="ctg-link-placeholder" href="#" target="_blank" class="text-teal-600 hover:text-teal-800 hover:underline">Search <i class="fas fa-external-link-alt ml-1"></i></a>
+                    </div>
+                </div>
+            </div>
+            <p class="text-sm text-gray-500">Note: Query syntax conversion is a complex process. The generated queries are suggestions and may require manual adjustments for optimal performance on each database.</p>
+        </div>
+
+        <div id="results-deduplicator-content-area" class="content-section">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-semibold text-gray-800 flex items-center m-0">
+                    <i class="fas fa-filter text-purple-500 mr-3"></i> Results Deduplicator
+                </h2>
+                <div class="relative self-start sm:self-center">
+                    <button id="export-results-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md flex items-center transition-colors duration-150">
+                        <i class="fas fa-download mr-2"></i> Export Results <i class="fas fa-chevron-down text-xs ml-2"></i>
+                    </button>
+                    <div id="export-options-dropdown" class="export-dropdown hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
+                        <a href="#" onclick="exportData('csv', event)" class="export-option-btn block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">Export as CSV</a>
+                        <a href="#" onclick="exportData('txt', event)" class="export-option-btn block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">Export as TXT</a>
+                        <a href="#" onclick="exportData('ris', event)" class="export-option-btn block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">Export as RIS</a>
+                    </div>
+                </div>
+            </div>
+            <p class="text-gray-600 mb-6">Upload your search results or use data from the PICO generator to identify and remove duplicate entries. Supports RIS, CSV, and TXT file formats for uploads.</p>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Data Source:</label>
+                <div class="flex items-center space-x-4 mb-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="dedup-source" value="pico" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked>
+                        <span class="ml-2 text-sm text-gray-700">Use Data from PICO Generator</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="dedup-source" value="file" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm text-gray-700">Upload File</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="pico-data-summary-dedup" class="mb-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+                <h4 class="text-md font-semibold text-gray-700 mb-2">PICO Generator Data Summary</h4>
+                <p class="text-sm text-gray-600">Total Conceptual Results (from PICO): <span id="pico-total-results-placeholder" class="font-medium">N/A</span></p>
+                <p class="text-sm text-gray-600">Conceptual Unique Results (after deduplication): <span id="pico-unique-results-placeholder" class="font-medium">N/A</span></p>
+                <p class="text-xs text-gray-500 mt-1">Click "Deduplicate" to see conceptual numbers based on PICO generator's database placeholders.</p>
+            </div>
+            
+            <div id="file-upload-container-dedup" class="mb-6 hidden">
+                <label for="file-upload" class="block text-sm font-medium text-gray-700 mb-1">Upload Results File:</label>
+                <input type="file" id="file-upload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-700 mb-2">Deduplication Strategy:</h3>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="dedup-strategy" value="conservative" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked>
+                        <span class="ml-2 text-sm text-gray-700">Conservative (Title + DOI/PMID)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="dedup-strategy" value="moderate" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm text-gray-700">Moderate (Title + Authors + Year)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="dedup-strategy" value="aggressive" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm text-gray-700">Aggressive (Fuzzy Title Matching)</span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="deduplicate-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-md flex items-center">
+                <i class="fas fa-magic mr-2"></i> Deduplicate
+            </button>
+
+            <div id="deduplication-summary-file" class="mt-8 hidden p-4 bg-gray-50 rounded-md border">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Deduplication Summary (File Upload):</h3>
+                <p class="text-gray-600">Original Count: <span id="original-count" class="font-medium">0</span></p>
+                <p class="text-gray-600">Duplicates Found: <span id="duplicates-found" class="font-medium">0</span></p>
+                <p class="text-gray-600">Unique Records: <span id="unique-count" class="font-medium">0</span></p>
+            </div>
+        </div>
+
+        <div id="gap-finder-page" class="dummy-page"><h2><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Research Gap Finder</h2><p>This page will help you find research gaps. Content coming soon.</p></div>
+        <div id="topic-generator-page" class="dummy-page"><h2><i class="fas fa-microscope text-teal-500 mr-2"></i>Novel Topic Generator</h2><p>This page will help generate novel topics. Content coming soon.</p></div>
+        <div id="tiab-screener-page" class="dummy-page"><h2><i class="fas fa-binoculars text-cyan-500 mr-2"></i>Ti/Ab Screener</h2><p>Title and Abstract Screener. Content coming soon.</p></div>
+        <div id="fulltext-screener-page" class="dummy-page"><h2><i class="fas fa-file-alt text-sky-500 mr-2"></i>Full Text Screener</h2><p>Full Text Screener. Content coming soon.</p></div>
+        <div id="extraction-assist-page" class="dummy-page"><h2><i class="fas fa-database text-lime-500 mr-2"></i>Data Extraction Assist</h2><p>Assistance for data extraction. Content coming soon.</p></div>
+        <div id="validation-assist-page" class="dummy-page"><h2><i class="fas fa-check-double text-emerald-500 mr-2"></i>Data Validation Assist</h2><p>Assistance for data validation. Content coming soon.</p></div>
+        <div id="analysis-assist-page" class="dummy-page"><h2><i class="fas fa-calculator text-green-500 mr-2"></i>Automated Data Analysis</h2><p>Automated data analysis tools. Content coming soon.</p></div>
+        <div id="plot-generator-page" class="dummy-page"><h2><i class="fas fa-chart-bar text-indigo-500 mr-2"></i>Plot Generator</h2><p>Generate various plots. Content coming soon.</p></div>
+        <div id="prisma-generator-page" class="dummy-page"><h2><i class="fas fa-sitemap text-pink-500 mr-2"></i>PRISMA Generator</h2><p>Generate PRISMA flow diagrams. Content coming soon.</p></div>
+        <div id="bias-assessment-page" class="dummy-page"><h2><i class="fas fa-shield-alt text-rose-500 mr-2"></i>Automated Risk of Bias</h2><p>Automated risk of bias assessment. Content coming soon.</p></div>
+        <div id="traffic-plot-page" class="dummy-page"><h2><i class="fas fa-traffic-light text-orange-500 mr-2"></i>Traffic Plot Generator</h2><p>Generate traffic light plots. Content coming soon.</p></div>
+        <div id="methodology-assist-page" class="dummy-page"><h2><i class="fas fa-pen-alt text-gray-500 mr-2"></i>Methodology Writing Assist</h2><p>Assistance for writing methodology sections. Content coming soon.</p></div>
+
+    </div>
+
+    <footer class="app-footer">
+        &copy; <span id="current-year"></span> Clinical Search Tools. All rights reserved.
+    </footer>
+
+    <div id="download-notification">Download started.</div>
+
+    <script>
+        // Page Navigation and Display Logic
+        const pageOrder = [
+            'pico-generator-content-area', 'query-converter-content-area', 'results-deduplicator-content-area',
+            'gap-finder-page', 'topic-generator-page', 'tiab-screener-page', 'fulltext-screener-page',
+            'extraction-assist-page', 'validation-assist-page', 'analysis-assist-page', 'plot-generator-page',
+            'prisma-generator-page', 'bias-assessment-page', 'traffic-plot-page', 'methodology-assist-page'
+        ];
+
+        const pageTitles = {
+            'pico-generator-content-area': 'PICO Search Query Generator',
+            'query-converter-content-area': 'Search Query Converter',
+            'results-deduplicator-content-area': 'Results Deduplicator',
+            'gap-finder-page': 'Research Gap Finder',
+            'topic-generator-page': 'Novel Topic Generator',
+            'tiab-screener-page': 'Ti/Ab Screener',
+            'fulltext-screener-page': 'Full Text Screener',
+            'extraction-assist-page': 'Data Extraction Assist',
+            'validation-assist-page': 'Data Validation Assist',
+            'analysis-assist-page': 'Automated Data Analysis',
+            'plot-generator-page': 'Plot Generator',
+            'prisma-generator-page': 'PRISMA Generator',
+            'bias-assessment-page': 'Automated Risk of Bias',
+            'traffic-plot-page': 'Traffic Plot Generator',
+            'methodology-assist-page': 'Methodology Writing Assist'
+        };
+
+        let currentPageId = pageOrder[0]; 
+
+        function showPage(pageId) {
+            document.querySelectorAll('.content-section, .dummy-page').forEach(section => {
+                section.style.display = 'none';
+                section.classList.remove('fade-in');
+            });
+
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.style.display = 'block';
+                setTimeout(() => { 
+                    targetPage.classList.add('fade-in');
+                }, 10);
+                currentPageId = pageId; 
+                
+                document.querySelectorAll('#hamburger-dropdown .hamburger-item-link').forEach(link => {
+                    link.classList.toggle('active', link.dataset.page === pageId);
+                });
+                 // Close all hamburger groups when a page is selected
+                document.querySelectorAll('.hamburger-group-title.open').forEach(groupTitle => {
+                    groupTitle.classList.remove('open');
+                    groupTitle.nextElementSibling.classList.remove('open');
+                    groupTitle.nextElementSibling.style.maxHeight = null;
+                });
+
+            } else {
+                console.warn(`Page with ID ${pageId} not found.`);
+            }
+            document.getElementById('hamburger-dropdown').classList.remove('show');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            updateNavigationButtons(); 
+        }
+        
+        function createNavigationButton(text, iconClass, pageId, isNextButton) {
+            const button = document.createElement('button');
+            const color = isNextButton ? 'green' : 'gray';
+            button.className = `bg-${color}-500 hover:bg-${color}-600 text-white font-medium py-2 px-4 sm:px-6 rounded-lg flex items-center transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-${color}-400 focus:ring-opacity-75`;
+            
+            const icon = document.createElement('i');
+            icon.className = `fas ${iconClass}`;
+            
+            const buttonText = document.createElement('span');
+            buttonText.className = 'hidden sm:inline';
+            buttonText.textContent = text;
+
+            const buttonTextMobile = document.createElement('span');
+            buttonTextMobile.className = 'sm:hidden';
+            buttonTextMobile.textContent = isNextButton ? 'Next' : 'Prev';
+
+            if (isNextButton) {
+                button.appendChild(buttonTextMobile);
+                button.appendChild(buttonText);
+                button.appendChild(icon);
+                icon.classList.add('ml-2');
+            } else {
+                icon.classList.add('mr-2');
+                button.appendChild(icon);
+                button.appendChild(buttonTextMobile);
+                button.appendChild(buttonText);
+            }
+            
+            button.onclick = () => showPage(pageId);
+            return button;
+        }
+
+        function updateNavigationButtons() {
+            pageOrder.forEach((pageId, index) => {
+                const pageElement = document.getElementById(pageId);
+                if (!pageElement) return;
+
+                let navContainer = pageElement.querySelector('.navigation-buttons-container');
+                if (navContainer) {
+                    navContainer.innerHTML = ''; 
+                } else {
+                    navContainer = document.createElement('div');
+                    navContainer.className = 'navigation-buttons-container';
+                    pageElement.appendChild(navContainer);
+                }
+
+                const prevButtonContainer = document.createElement('div');
+                const nextButtonContainer = document.createElement('div');
+                navContainer.appendChild(prevButtonContainer);
+                navContainer.appendChild(nextButtonContainer);
+
+
+                if (index > 0) {
+                    const prevPageId = pageOrder[index - 1];
+                    const prevPageTitle = pageTitles[prevPageId] || 'Previous Section';
+                    const prevButton = createNavigationButton(`Prev: ${prevPageTitle}`, 'fa-arrow-left', prevPageId, false);
+                    prevButtonContainer.appendChild(prevButton);
+                } else {
+                     prevButtonContainer.innerHTML = '<div></div>'; 
+                }
+
+                if (index < pageOrder.length - 1) {
+                    const nextPageId = pageOrder[index + 1];
+                    const nextPageTitle = pageTitles[nextPageId] || 'Next Section';
+                    const nextButton = createNavigationButton(`Next: ${nextPageTitle}`, 'fa-arrow-right', nextPageId, true);
+                    nextButtonContainer.appendChild(nextButton);
+                } else {
+                    nextButtonContainer.innerHTML = '<div></div>'; 
+                }
+            });
+        }
+        
+        let terms = { patient: [], intervention: [], comparison: [], outcome: [] };
+        let booleanOperators = { patient: 'AND', intervention: 'AND', comparison: 'AND', outcome: 'AND' };
+        let isAdvancedMode = false;
+
+        function addTerm(picoElement) {
+            const inputField = document.getElementById(`${picoElement}-input`);
+            const termValue = inputField.value.trim();
+            if (!termValue) return;
+
+            const operator = terms[picoElement].length > 0 ? booleanOperators[picoElement] : '';
+            terms[picoElement].push({ term: termValue, operator: operator });
+            
+            renderTerms(picoElement);
+            inputField.value = '';
+            inputField.focus();
+            updateBooleanButtonVisibility(picoElement);
+        }
+
+        function renderTerms(picoElement) {
+            const container = document.getElementById(`${picoElement}-terms-container`);
+            container.innerHTML = '';
+            terms[picoElement].forEach((item, index) => {
+                const badge = document.createElement('span');
+                badge.className = 'term-badge bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center';
+                
+                let displayOperator = '';
+                if (index > 0 && item.operator) {
+                    displayOperator = `<span class="text-red-500 font-bold mx-1.5">${item.operator}</span>`;
+                }
+                badge.innerHTML = `${displayOperator}${item.term} <button onclick="removeTerm('${picoElement}', ${index})" class="ml-2 text-gray-500 hover:text-red-500">&times;</button>`;
+                container.appendChild(badge);
+            });
+        }
+
+        function removeTerm(picoElement, index) {
+            terms[picoElement].splice(index, 1);
+            if (terms[picoElement].length > 0 && index === 0) {
+                 if(terms[picoElement][0]) terms[picoElement][0].operator = '';
+            }
+            renderTerms(picoElement);
+            updateBooleanButtonVisibility(picoElement);
+        }
+        
+        function setBooleanOperator(picoElement, operator) {
+            booleanOperators[picoElement] = operator;
+            document.getElementById(`${picoElement}-boolean-text`).textContent = operator;
+            document.getElementById(`${picoElement}-boolean-dropdown`).classList.remove('show');
+        }
+
+        function updateBooleanButtonVisibility(picoElement) {
+            const booleanButton = document.getElementById(`${picoElement}-boolean-btn`);
+            if (isAdvancedMode && terms[picoElement].length > 0) {
+                booleanButton.classList.remove('hidden');
+            } else {
+                booleanButton.classList.add('hidden');
+                document.getElementById(`${picoElement}-boolean-dropdown`).classList.remove('show');
+            }
+        }
+        
+        function handleKeyPress(event, picoElement) {
+            if (event.key === 'Enter') {
+                addTerm(picoElement);
+            }
+        }
+
+        document.getElementById('advanced-toggle').addEventListener('change', function() {
+            isAdvancedMode = this.checked;
+            ['patient', 'intervention', 'comparison', 'outcome'].forEach(pico => {
+                updateBooleanButtonVisibility(pico);
+            });
+        });
+
+        ['patient', 'intervention', 'comparison', 'outcome'].forEach(pico => {
+            const btn = document.getElementById(`${pico}-boolean-btn`);
+            const dropdown = document.getElementById(`${pico}-boolean-dropdown`);
+            if(btn && dropdown){
+                btn.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    document.querySelectorAll('.boolean-dropdown.show').forEach(d => {
+                        if (d !== dropdown) d.classList.remove('show');
+                    });
+                    dropdown.classList.toggle('show');
+                });
+            }
+        });
+        
+        document.getElementById('generate-btn')?.addEventListener('click', function() {
+            const strategyArea = document.getElementById('pico-strategy-display-area');
+            strategyArea.classList.remove('hidden');
+            strategyArea.classList.add('fade-in');
+
+            const picoElements = ['patient', 'intervention', 'comparison', 'outcome'];
+            picoElements.forEach(picoEl => {
+                const termsArray = terms[picoEl];
+                document.getElementById(`strategy-${picoEl}`).textContent = termsArray.map(t => t.term).join(', ') || 'N/A';
+                
+                const listElement = document.getElementById(`suggested-${picoEl}-list`);
+                listElement.innerHTML = ''; 
+                if (termsArray.length > 0) {
+                    termsArray.forEach(t => {
+                        const li = document.createElement('li');
+                        li.textContent = t.term;
+                        listElement.appendChild(li);
+                    });
+                } else {
+                    const li = document.createElement('li');
+                    li.textContent = 'N/A';
+                    li.classList.add('text-gray-500', 'italic');
+                    listElement.appendChild(li);
+                }
+            });
+
+            let queryString = "";
+            picoElements.forEach(key => {
+                if (terms[key].length > 0) {
+                    const groupString = terms[key].map((item, idx) => {
+                        let termPart = `"${item.term}"`;
+                        if (isAdvancedMode && idx > 0 && item.operator) {
+                            return ` ${item.operator} ${termPart}`;
+                        }
+                        return termPart;
+                    }).join("").trim(); 
+
+                    if (groupString) { 
+                         if (queryString.length > 0 && !queryString.endsWith("AND ") && !queryString.endsWith("OR ") && !queryString.endsWith("NOT ") ) {
+                            queryString += " AND ";
+                        }
+                        queryString += `(${groupString})`;
+                    }
+                }
+            });
+            document.getElementById('overall-search-string-display').textContent = queryString || 'Please enter terms in PICO fields.';
+            
+            const baseQuery = queryString || "";
+            document.getElementById('pubmed-query-placeholder').textContent = baseQuery.replace(/"([^"]*)"/g, '$1[tw]'); 
+            document.getElementById('embase-query-placeholder').textContent = baseQuery.replace(/"([^"]*)"/g, "'$1'/exp"); 
+            document.getElementById('cochrane-query-placeholder').textContent = baseQuery;
+            document.getElementById('scopus-query-placeholder').textContent = `TITLE-ABS-KEY(${baseQuery.replace(/\sAND\s/g, " AND ").replace(/\sOR\s/g, " OR ").replace(/\sNOT\s/g, " NOT ").replace(/[()"]/g, "")})`; 
+            document.getElementById('wos-query-placeholder').textContent = `TS=(${baseQuery.replace(/["]/g, "")})`; 
+            document.getElementById('cinahl-query-placeholder').textContent = baseQuery; 
+            document.getElementById('ctg-query-placeholder').textContent = baseQuery; // CTG placeholder
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+        });
+
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+        hamburgerBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            hamburgerDropdown.classList.toggle('show');
+        });
+
+        // Hamburger group collapsible logic
+        document.querySelectorAll('.hamburger-group-title').forEach(title => {
+            title.addEventListener('click', function() {
+                this.classList.toggle('open');
+                const content = this.nextElementSibling;
+                if (content.classList.contains('open')) {
+                    content.classList.remove('open');
+                    content.style.maxHeight = null;
+                } else {
+                    content.classList.add('open');
+                    content.style.maxHeight = content.scrollHeight + "px";
+                }
+            });
+        });
+
+
+        document.querySelectorAll('.hamburger-item-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const pageId = this.dataset.page;
+                if (pageId) showPage(pageId);
+            });
+        });
+
+        const exportResultsBtn = document.getElementById('export-results-btn');
+        const exportOptionsDropdown = document.getElementById('export-options-dropdown');
+
+        if (exportResultsBtn) {
+            exportResultsBtn.addEventListener('click', function(event) {
+                event.stopPropagation();
+                exportOptionsDropdown.classList.toggle('hidden');
+            });
+        }
+
+        function exportData(format, event) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log(`Exporting data as ${format}...`);
+            
+            const notification = document.getElementById('download-notification');
+            notification.textContent = `Download started for ${format.toUpperCase()} file.`;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+
+            if(exportOptionsDropdown) exportOptionsDropdown.classList.add('hidden');
+        }
+        
+        const dedupSourceRadios = document.querySelectorAll('input[name="dedup-source"]');
+        const picoDataSummaryDedup = document.getElementById('pico-data-summary-dedup');
+        const fileUploadContainerDedup = document.getElementById('file-upload-container-dedup');
+        const deduplicationSummaryFile = document.getElementById('deduplication-summary-file');
+
+
+        dedupSourceRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'pico') {
+                    picoDataSummaryDedup.classList.remove('hidden');
+                    fileUploadContainerDedup.classList.add('hidden');
+                    deduplicationSummaryFile.classList.add('hidden'); 
+                } else { 
+                    picoDataSummaryDedup.classList.add('hidden');
+                    fileUploadContainerDedup.classList.remove('hidden');
+                }
+            });
+        });
+        
+        document.querySelector('input[name="dedup-source"][value="pico"]').dispatchEvent(new Event('change'));
+
+
+        document.getElementById('deduplicate-btn')?.addEventListener('click', function() {
+            const selectedSource = document.querySelector('input[name="dedup-source"]:checked').value;
+            if (selectedSource === 'file') {
+                console.log("Deduplicating from file...");
+                document.getElementById('original-count').textContent = "e.g., 500"; 
+                document.getElementById('duplicates-found').textContent = "e.g., 50"; 
+                document.getElementById('unique-count').textContent = "e.g., 450"; 
+                deduplicationSummaryFile.classList.remove('hidden');
+                picoDataSummaryDedup.classList.add('hidden');
+            } else { 
+                 console.log("Deduplicating from PICO data (conceptual)...");
+                let totalPicoResults = 0;
+                const dbResultSpans = [
+                    'pubmed-results-count', 'embase-results-count', 'cochrane-results-count',
+                    'scopus-results-count', 'wos-results-count', 'cinahl-results-count', 'ctg-results-count'
+                ];
+                dbResultSpans.forEach(spanId => {
+                    const spanElement = document.getElementById(spanId);
+                    if (spanElement && spanElement.dataset.count) {
+                        totalPicoResults += parseInt(spanElement.dataset.count, 10);
+                    }
+                });
+
+                const uniquePicoResults = Math.round(totalPicoResults * 0.9); // Conceptual 10% duplicate rate
+
+                document.getElementById('pico-total-results-placeholder').textContent = totalPicoResults > 0 ? totalPicoResults : "N/A (Generate PICO query first)";
+                document.getElementById('pico-unique-results-placeholder').textContent = totalPicoResults > 0 ? uniquePicoResults : "N/A";
+                
+                picoDataSummaryDedup.classList.remove('hidden'); 
+                deduplicationSummaryFile.classList.add('hidden'); 
+            }
+        });
+
+
+        document.addEventListener('click', (event) => {
+            if (hamburgerDropdown && !hamburgerBtn.contains(event.target) && !hamburgerDropdown.contains(event.target)) {
+                hamburgerDropdown.classList.remove('show');
+            }
+            document.querySelectorAll('.boolean-dropdown.show').forEach(dropdown => {
+                const buttonId = dropdown.id.replace('-dropdown', '-btn');
+                const button = document.getElementById(buttonId);
+                if (button && !button.contains(event.target) && !dropdown.contains(event.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+            if (exportOptionsDropdown && exportResultsBtn && !exportResultsBtn.contains(event.target) && !exportOptionsDropdown.contains(event.target)) {
+                exportOptionsDropdown.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showPage(pageOrder[0]); 
+            updateNavigationButtons(); 
+            
+            isAdvancedMode = document.getElementById('advanced-toggle').checked;
+            ['patient', 'intervention', 'comparison', 'outcome'].forEach(pico => {
+                updateBooleanButtonVisibility(pico);
+            });
+            const initialDedupSource = document.querySelector('input[name="dedup-source"]:checked');
+            if (initialDedupSource) initialDedupSource.dispatchEvent(new Event('change'));
+
+            // Initialize hamburger groups to be collapsed
+            document.querySelectorAll('.hamburger-group-content').forEach(content => {
+                content.classList.remove('open');
+                content.style.maxHeight = null;
+            });
+            document.querySelectorAll('.hamburger-group-title').forEach(title => {
+                title.classList.remove('open');
+            });
+        });
+
+    </script>
+</body>
+</html>
