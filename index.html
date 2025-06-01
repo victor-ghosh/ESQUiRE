@@ -1,3 +1,4 @@
+const API_BASE = "https://mach1.tail0510c7.ts.net";
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -648,7 +649,7 @@
 
   async function fetchSuggest(text, sugg, input, wrapper){
     try{
-      const r=await fetch(`http://100.65.68.51/crossmap?term=${encodeURIComponent(text)}`);
+      const r = await fetch(`${API_BASE}/crossmap?term=${encodeURIComponent(text)}`);
       if(r.ok){
         const data=await r.json();
         const suggestions=data.suggestions||[];
@@ -672,7 +673,7 @@
     // fetch queries
     let queries=null;
     try{
-      const r=await fetch(`http://100.65.68.51/crossmap?term=${encodeURIComponent(term)}`);
+      const r = await fetch(`${API_BASE}/crossmap?term=${encodeURIComponent(term)}`);
       if(r.ok){
         const d=await r.json();
         queries=d.queries||null;
