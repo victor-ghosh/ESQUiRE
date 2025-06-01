@@ -1,6 +1,4 @@
-
 <!DOCTYPE html>
-const API_BASE = "https://mach1.tail0510c7.ts.net";
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -538,6 +536,8 @@ const API_BASE = "https://mach1.tail0510c7.ts.net";
   
   const FIELDS = ["Population","Intervention","Control","Outcome"];
   const state = {};
+  const API_BASE = "https://mach1.tail0510c7.ts.net";
+
   FIELDS.forEach(f => state[f] = { terms: [] });
 
   let advanced = false;
