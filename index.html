@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- Darker text in the tab label -->
-  <title>ESQUiRE</title>
+  <title>ESQUiRE • Darker</title>
 
   <!-- Google font import -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -484,6 +485,14 @@
     outline: 2px dashed var(--c-mid);
     outline-offset: 2px;
   }
+  .filter-op{
+  font-size:0.9rem;
+  border:1px solid var(--c-mid);
+  border-radius:4px;
+  background:#fff;
+  padding:0.1rem 0.4rem;
+  display:none;          /* shown only when advanced mode + checked */
+}
   </style>
 </head>
 
@@ -534,9 +543,75 @@
   const resultsSection = document.getElementById("results");
   const picoSection = document.getElementById("pico-inputs");
   
-  const FIELDS = ["Population","Intervention","Control","Outcome"];
-  const state = {};
-  const API_BASE = "https://mach1.tail0510c7.ts.net";
+const FIELDS = ["Population","Intervention","Control","Outcome"];
+const state = {};
+   // Track one active filter per DB in quick mode
+   const activeFilter = { PubMed: null, Embase: null, Scopus: null, Cochrane: null };
+   // Track operator selections in advanced mode: { db: [ {id, opSel}, ... ] }
+   const filterOps = { PubMed: [], Embase: [], Scopus: [], Cochrane: [] };
+
+// Use local FastAPI during development; swap to the funnel URL when deployed.
+const API_BASE = "https://mach1.tail0510c7.ts.net";
+
+/* ------------------------------------------------------------------ */
+/* Build the four PICO term fields with inputs, suggestions, pills    */
+/* ------------------------------------------------------------------ */
+function initFields(){
+  FIELDS.forEach(field=>{
+    const wrapper=document.createElement("div");
+    wrapper.className="term-field";
+    wrapper.innerHTML=`
+      <label>${field}</label>
+      <select class="bool-operator">
+        <option value="AND">AND</option>
+        <option value="OR">OR</option>
+        <option value="NOT">NOT</option>
+      </select>
+      <input type="text" placeholder="Type ${field} term"/>
+      <ul class="suggestions"></ul>
+      <div class="pills"></div>
+    `;
+    picoSection.appendChild(wrapper);
+    // keep reference so validate() can access its operator select
+    state[field].wrapper = wrapper;
+
+    const input = wrapper.querySelector("input");
+    const sugg  = wrapper.querySelector(".suggestions");
+    const selInit = wrapper.querySelector('.bool-operator');
+    selInit.dataset.active = "false";   // start inactive
+
+    let tID;
+    input.addEventListener("input", e=>{
+      const val = input.value.trim();
+      const parts = val.split(/\s+/);
+      if(!val || (parts.length<2 && val.length<2)){
+        sugg.classList.remove("open");
+        wrapper.style.zIndex="auto";
+        return;
+      }
+      clearTimeout(tID);
+      tID = setTimeout(()=>fetchSuggest(val.toLowerCase(), sugg, input, wrapper),300);
+    });
+
+    // accept on click
+    sugg.addEventListener("click", ev=>{
+      if(ev.target.tagName==="LI" && !ev.target.textContent.startsWith("—")){
+        acceptTerm(field, ev.target.textContent, wrapper, input, sugg);
+      }
+    });
+
+    // accept on Enter
+    input.addEventListener("keydown", ev=>{
+      if(ev.key==="Enter" && sugg.classList.contains("open")){
+        const first = sugg.querySelector("li");
+        if(first && !first.textContent.startsWith("—")){
+          ev.preventDefault();
+          acceptTerm(field, first.textContent, wrapper, input, sugg);
+        }
+      }
+    });
+  });
+}
 
   FIELDS.forEach(f => state[f] = { terms: [] });
 
@@ -583,89 +658,123 @@
   initFields();
   initFilters();
 
-  function initFields(){
-    FIELDS.forEach(name=>{
-      const wrapper = document.createElement("div");
-      wrapper.className="term-field";
-      wrapper.dataset.field=name;
+  function initFilters(){
+  const filtersSec=document.getElementById("filters");
+  const data=getFilters();
+  for(const [db,list] of Object.entries(data)){
+    const det=document.createElement("details");
+    det.className="accordion";
+    det.innerHTML=`<summary>${db} filters</summary><div class="filter-list"></div>`;
+    const flist=det.querySelector(".filter-list");
 
-      // Label
-      const label = document.createElement("label");
-      label.textContent = name;
-      wrapper.appendChild(label);
+    list.forEach(f=>{
+      const row=document.createElement("div");
+      row.className="filter-item";
 
-      // Operator select top-right
-      const sel = document.createElement("select");
-      sel.className="bool-operator";
-      sel.innerHTML=`
-        <option value="AND">AND</option>
-        <option value="OR">OR</option>
-        <option value="NOT">NOT</option>
+      // inline operator select (hidden by default)
+      const opSel=document.createElement("select");
+      opSel.className="filter-op";
+      opSel.innerHTML=`<option value="AND">AND</option>
+                       <option value="OR">OR</option>
+                       <option value="NOT">NOT</option>`;
+      row.appendChild(opSel);
+
+      const val="`"+f.query+"`";
+      row.innerHTML+=`
+        <label style="flex:1 1 auto;">
+          <input type="checkbox" data-db="${db}" value='${val}'>
+          ${f.title}
+        </label>
+        <a href="${f.ref}" target="_blank" aria-label="Reference for ${f.title}">↗</a>
       `;
-      wrapper.appendChild(sel);
+      // keep operator select before the link
+      row.insertBefore(opSel,row.querySelector('a'));
 
-      // Input
-      const input = document.createElement("input");
-      input.type="text";
-      input.setAttribute("aria-label", name+" term");
-      wrapper.appendChild(input);
+      const chk=row.querySelector('input[type="checkbox"]');
 
-      // Pills
-      const pillsDiv = document.createElement("div");
-      pillsDiv.className="pills";
-      wrapper.appendChild(pillsDiv);
-
-      // Suggestions
-      const sugg = document.createElement("ul");
-      sugg.className="suggestions";
-      sugg.setAttribute("role","listbox");
-      wrapper.appendChild(sugg);
-
-      picoSection.appendChild(wrapper);
-
-      let timer;
-      input.addEventListener("input",(e)=>{
-        clearTimeout(timer);
-        const val=e.target.value.trim();
-        if(!val){
-          sugg.classList.remove("open");
-          return;
-        }
-        timer=setTimeout(()=>fetchSuggest(val,sugg,input,wrapper),300);
-      });
-      input.addEventListener("blur",()=>{
-        setTimeout(()=>{
-          sugg.classList.remove("open");
-          wrapper.style.zIndex="auto";
-        },200);
-      });
-      sugg.addEventListener("click",(evt)=>{
-        if(evt.target.matches("li")){
-          const term=evt.target.textContent;
-          acceptTerm(name, term, wrapper, input, sugg);
+      chk.addEventListener("change",()=>{
+        if(!advanced){
+          // QUICK MODE: enforce single filter per DB
+          if(chk.checked){
+            const prev=activeFilter[db];
+            if(prev && prev!==chk){
+              prev.checked=false;
+              prev.closest('.filter-item').querySelector('.filter-op').style.display='none';
+            }
+            activeFilter[db]=chk;
+          } else if(activeFilter[db]===chk){
+            activeFilter[db]=null;
+          }
+          opSel.style.display="none";
+        } else {
+          // ADVANCED MODE: allow many, each with its own operator
+          if(chk.checked){
+            opSel.style.display = filterOps[db].length ? "inline-block":"none";
+            filterOps[db].push({id:val, opSel});
+          } else {
+            opSel.style.display="none";
+            filterOps[db] = filterOps[db].filter(o=>o.id!==val);
+          }
+          refreshOps(db);  // ensure first filter has no operator
         }
       });
+
+      // keep reference updated on operator change
+      opSel.addEventListener("change",()=>{/* stored by reference */});
+
+      flist.appendChild(row);
     });
+
+    filtersSec.appendChild(det);
   }
+}
+
+function refreshOps(db){
+  // hide operator on first filter, show on subsequent ones
+  filterOps[db].forEach((o, idx)=>{
+    if(o.opSel) o.opSel.style.display = idx===0 ? "none" : "inline-block";
+  });
+}
 
   async function fetchSuggest(text, sugg, input, wrapper){
     try{
       const r = await fetch(`${API_BASE}/crossmap?term=${encodeURIComponent(text)}`);
       if(r.ok){
-        const data=await r.json();
-        const suggestions=data.suggestions||[];
-        const frag=text.toLowerCase();
-        const starts=suggestions.filter(s=>s.toLowerCase().startsWith(frag));
-        starts.sort((a,b)=>a.localeCompare(b));
-        sugg.innerHTML="";
-        starts.forEach(s=>{
-          const li=document.createElement("li");
-          li.tabIndex=0;
-          li.textContent=s;
+        const data = await r.json();
+      const sugObj = data.suggestions || { normal: [], abbr: [] };
+      const normals = sugObj.normal || [];
+      const abbrevs = sugObj.abbr || [];
+
+      sugg.innerHTML = "";
+
+      /* --- normal suggestions (already capped at 10 by backend) --- */
+      normals.forEach(t => {
+        const li = document.createElement("li");
+        li.tabIndex = 0;
+        li.textContent = t;
+        sugg.appendChild(li);
+      });
+
+      /* --- optional abbreviation section (max 5) --- */
+      if (abbrevs.length) {
+        const sep = document.createElement("li");
+        sep.textContent = "— abbreviations —";
+        sep.style.fontStyle = "italic";
+        sep.style.cursor = "default";
+        sep.style.background = "#f4f4f4";
+        sugg.appendChild(sep);
+
+        abbrevs.forEach(t => {
+          const li = document.createElement("li");
+          li.tabIndex = 0;
+          li.textContent = t;
           sugg.appendChild(li);
         });
-        sugg.classList.toggle("open", starts.length>0);
-        wrapper.style.zIndex=starts.length ? "9999" : "auto";
+      }
+
+      const hasAny = normals.length || abbrevs.length;
+      sugg.classList.toggle("open", hasAny);
+      wrapper.style.zIndex = hasAny ? "9999" : "auto";
       }
     }catch(e){}
   }
@@ -693,19 +802,22 @@
     } else {
       // advanced => chain
       if(!st.terms.length){
-        // first => no op
+        // first term => no preceding operator
         st.terms.push({term, op:"", queries});
         pillsDiv.innerHTML="";
         addKeywordPill(pillsDiv, term, "", field);
-        // show operator
-        sel.style.display="inline-block";
-        sel.focus();
+
+        // show operator select immediately for potential next term
+        sel.value = "AND";
+        sel.style.display = "inline-block";
+        sel.dataset.active = "true";
       } else {
         const op=sel.value||"AND";
         st.terms.push({term, op, queries});
         // operator pill + keyword pill
         addOperatorPill(pillsDiv, op);
         addKeywordPill(pillsDiv, term, op, field);
+        sel.style.display = "inline-block";
       }
     }
 
@@ -738,37 +850,98 @@
     container.appendChild(pill);
   }
 
+  /* Hide & reset the inline operator <select> inside a term-field wrapper */
+  function hideOperatorSelect(wrapper){
+    const sel = wrapper.querySelector('.bool-operator');
+    if(sel){
+      sel.style.display = 'none';
+      sel.value = 'AND';   // restore default
+      sel.dataset.active = "false";
+    }
+  }
+
   function removeKeyword(field, term, op, container, pillEl){
-    const arr=state[field].terms;
-    const idx=arr.findIndex(t=>t.term===term && t.op===op);
-    if(idx>=0){
-      if(idx>0 && arr[idx].op){
-        // remove preceding operator pill
-        const i=[...container.children].indexOf(pillEl);
-        if(i>0){
-          const prev=container.children[i-1];
+    const arr = state[field].terms;
+    const idx = arr.findIndex(t => t.term === term && t.op === op);
+    if(idx >= 0){
+      if(idx > 0){
+        /* Case 1: deleting any term that is NOT the first —
+           remove the operator pill immediately *before* it */
+        const i = [...container.children].indexOf(pillEl);
+        if(i > 0){
+          const prev = container.children[i-1];
           if(prev.classList.contains("pill-operator")){
             container.removeChild(prev);
           }
         }
+      } else {
+        /* Case 2: deleting the FIRST term —
+           remove the operator pill immediately *after* it
+           and clear the op of what becomes the new first term */
+        const i = [...container.children].indexOf(pillEl);
+        const next = container.children[i+1];
+        if(next && next.classList.contains("pill-operator")){
+          container.removeChild(next);
+        }
+        if(state[field].terms.length > 1){
+          state[field].terms[1].op = "";  // new first term has no leading op
+        }
       }
-      arr.splice(idx,1);
+      // finally, remove the term object itself
+      state[field].terms.splice(idx, 1);
     }
     container.removeChild(pillEl);
+    /* If the field now has *no* keyword pills left (regardless of state array
+       discrepancies), hide & reset the operator select. */
+    if(!container.querySelector('.keyword-pill')){
+      hideOperatorSelect(container.parentElement);
+      // also make sure state array is fully cleared
+      state[field].terms = [];
+    }
     validate();
   }
 
-  function updateMode(){
-    advanced=modeToggle.checked;
-    FIELDS.forEach(f=>state[f].terms=[]);
-    document.querySelectorAll(".pills").forEach(p=>p.innerHTML="");
-    searchBtn.textContent=advanced?"Advanced Search":"Search";
-    // hide <select>
-    document.querySelectorAll(".bool-operator").forEach(sel=>{
-      sel.style.display="none";
-    });
-    validate();
+function updateMode(){
+  advanced=modeToggle.checked;
+  FIELDS.forEach(f=>state[f].terms=[]);
+  document.querySelectorAll(".pills").forEach(p=>p.innerHTML="");
+  searchBtn.textContent=advanced?"Advanced Search":"Search";
+  // hide <select>
+  document.querySelectorAll(".bool-operator").forEach(sel=>{
+    sel.style.display="none";
+  });
+  /* --- NEW: reset filters, results, and buttons on mode switch --- */
+  // clear all filter checkboxes
+  document.querySelectorAll('#filters input[type="checkbox"]').forEach(chk=>{
+    chk.checked = false;
+  });
+  // reset tracking objects
+  for(const db in activeFilter) activeFilter[db] = null;
+  for(const db in filterOps)    filterOps[db] = [];
+
+  // hide any inline filter operator selects
+  document.querySelectorAll('.filter-op').forEach(sel=>{
+    sel.style.display = 'none';
+  });
+
+  // clear and hide results
+  resultsSection.innerHTML = "";
+  resultsSection.hidden = true;
+
+  // hide reset button
+  resetBtn.style.display = "none";
+  resetBtn.style.opacity = "0";
+
+  // reset operator visibility & tracking on mode switch (legacy)
+  document.querySelectorAll('.filter-op').forEach(sel=>{
+    const chk = sel.parentElement.querySelector('input[type="checkbox"]');
+    sel.style.display = (advanced && chk.checked) ? 'inline-block' : 'none';
+  });
+  if(!advanced){
+    for(const db in filterOps) filterOps[db] = [];
   }
+  validate();
+}
 
   function validate(){
     let ready=false;
@@ -778,6 +951,23 @@
       }
     }
     searchBtn.disabled=!ready;
+    // Per-field operator visibility
+    FIELDS.forEach(ff=>{
+      const wr = state[ff].wrapper;
+      if(!wr) return;
+
+      const sel = wr.querySelector('.bool-operator');
+      if(!sel) return;
+
+      if(state[ff].terms.length === 0){
+        // No keywords → force‑reset operator
+        hideOperatorSelect(wr);            // hides + sets active=false
+      } else {
+        // At least one keyword → ensure operator flagged active
+        sel.dataset.active = "true";
+        sel.style.display = advanced ? 'inline-block' : 'none';
+      }
+    });
   }
 
   // helper: find the correct query key for a DB
@@ -837,15 +1027,39 @@
       }
     });
 
-    // filters
+  // -------- FILTERS ----------
+  if(!advanced){
+    // QUICK MODE: at most one per DB, combine with AND
     const checks=document.querySelectorAll('#filters input[type="checkbox"]:checked');
     checks.forEach(chk=>{
-      const db=chk.getAttribute("data-db");
-      let raw=chk.value||"";
-      raw=raw.replace(/`/g,"");
-      if(!perDB[db]) perDB[db]=[];
+      const db=chk.dataset.db;
+      const raw=chk.value.replace(/`/g,"");
       perDB[db].push(`(${raw})`);
     });
+  } else {
+    // ADVANCED MODE: chain filters within each DB using per-filter operator
+    const ordered=[];
+    document.querySelectorAll('#filters input[type="checkbox"]').forEach(chk=>{
+      if(chk.checked) ordered.push(chk);
+    });
+    ordered.forEach(chk=>{
+      const db=chk.dataset.db;
+      const val=chk.value.replace(/`/g,"");
+      const opSel=chk.closest('.filter-item').querySelector('.filter-op');
+      const op=opSel?opSel.value:"AND";
+      if(!perDB[db]) perDB[db]=[];
+      perDB[db].push({val,op});
+    });
+    for(const db in perDB){
+      const arr=perDB[db];
+      if(!arr.length) continue;
+      let clause=`(${arr[0].val})`;
+      for(let i=1;i<arr.length;i++){
+        clause=`(${clause} ${arr[i].op} (${arr[i].val}))`;
+      }
+      perDB[db]=[clause]; // compress to single string
+    }
+  }
 
     for(const db in perDB){
       perDB[db]= perDB[db].join(" AND ");
@@ -888,34 +1102,6 @@
         window.open(urlBase,"_blank");
       });
       resultsSection.appendChild(block);
-    }
-  }
-
-  function initFilters(){
-    const filtersSec=document.getElementById("filters");
-    const data=getFilters();
-    for(const [db,list] of Object.entries(data)){
-      const det=document.createElement("details");
-      det.className="accordion";
-      det.innerHTML=`
-        <summary>${db} filters</summary>
-        <div class="filter-list"></div>
-      `;
-      const flist=det.querySelector(".filter-list");
-      list.forEach(f=>{
-        const row=document.createElement("div");
-        row.className="filter-item";
-        const val="`"+f.query+"`";
-        row.innerHTML=`
-          <label>
-            <input type="checkbox" data-db="${db}" value='${val}'>
-            ${f.title}
-          </label>
-          <a href="${f.ref}" target="_blank" aria-label="Reference for ${f.title}">↗</a>
-        `;
-        flist.appendChild(row);
-      });
-      filtersSec.appendChild(det);
     }
   }
 
